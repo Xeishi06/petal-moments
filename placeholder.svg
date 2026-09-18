@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="600" height="600" viewBox="0 0 600 600">
+  <rect width="600" height="600" fill="#f8f1eb"/>
+  <circle cx="300" cy="260" r="70" fill="none" stroke="#b76e79" stroke-width="4"/>
+  <line x1="300" y1="330" x2="300" y2="430" stroke="#b76e79" stroke-width="4"/>
+  <path d="M260 430 Q280 390 300 430 Q320 390 340 430 Z" fill="none" stroke="#77866f" stroke-width="4"/>
+  <text x="300" y="500" font-family="DM Sans, Arial, sans-serif" font-size="26" fill="#8d4d58" text-anchor="middle">Arrangement</text>
+</svg>
