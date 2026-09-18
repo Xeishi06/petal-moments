@@ -38,18 +38,27 @@ $orders = $pdo->query("
 <div class="admin-card"><h1>Orders</h1><p>Manage and update the status of customer orders.</p></div>
 
 <div class="admin-card">
+    <div class="table-scroll">
     <table class="admin-table">
         <thead>
             <tr><th>#</th><th>Customer</th><th>Items</th><th>Total</th><th>Payment</th><th>Status</th><th>Date</th><th>Update</th></tr>
         </thead>
         <tbody>
+        <?php if (empty($orders)): ?>
+            <tr><td colspan="8" class="table-empty">No orders yet.</td></tr>
+        <?php else: ?>
         <?php foreach ($orders as $o): ?>
             <tr>
                 <td>#<?php echo (int)$o['id']; ?></td>
                 <td>
-                    Customer <?php echo (int)$o['customer_id']; ?><br>
-                    <small><?php echo e($o['email']); ?></small><br>
-                    <small><?php echo e($o['delivery_address']); ?></small>
+                    <div class="cell-with-thumb">
+                        <span class="avatar avatar-sm avatar-sage">C</span>
+                        <div>
+                            <strong>Customer <?php echo (int)$o['customer_id']; ?></strong>
+                            <small><?php echo e($o['email']); ?></small>
+                            <small><?php echo e($o['delivery_address']); ?></small>
+                        </div>
+                    </div>
                 </td>
                 <td><?php echo (int)$o['items']; ?></td>
                 <td>₱<?php echo number_format((float)$o['total_amount'], 2); ?></td>
@@ -69,8 +78,10 @@ $orders = $pdo->query("
                 </td>
             </tr>
         <?php endforeach; ?>
+        <?php endif; ?>
         </tbody>
     </table>
+    </div>
 </div>
 
 <?php include __DIR__ . '/includes/admin_footer.php'; ?>

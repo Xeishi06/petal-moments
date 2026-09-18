@@ -23,23 +23,31 @@ $count = $pdo->query("SELECT COUNT(*) FROM newsletter_subscribers WHERE is_subsc
 <div class="admin-card"><h1>Newsletter Subscribers</h1><p><?php echo (int)$count; ?> active subscriber(s).</p></div>
 
 <div class="admin-card">
+    <div class="table-scroll">
     <table class="admin-table">
-        <thead><tr><th>ID</th><th>Email</th><th>Subscribed</th><th>Date</th><th>Actions</th></tr></thead>
+        <thead><tr><th>Email</th><th>Status</th><th>Date</th><th>Actions</th></tr></thead>
         <tbody>
         <?php foreach ($subs as $s): ?>
             <tr>
-                <td><?php echo (int)$s['id']; ?></td>
-                <td><?php echo e($s['email']); ?></td>
-                <td><?php echo $s['is_subscribed'] ? 'Yes' : 'No'; ?></td>
+                <td>
+                    <div class="cell-with-thumb">
+                        <span class="avatar avatar-sm avatar-sage">@</span>
+                        <div><strong><?php echo e($s['email']); ?></strong><small>#<?php echo (int)$s['id']; ?></small></div>
+                    </div>
+                </td>
+                <td><span class="chip <?php echo $s['is_subscribed'] ? 'chip-in' : 'chip-out'; ?>"><?php echo $s['is_subscribed'] ? 'Active' : 'Inactive'; ?></span></td>
                 <td><?php echo date('M j, Y', strtotime($s['created_at'])); ?></td>
                 <td>
-                    <a href="subscribers.php?toggle=<?php echo (int)$s['id']; ?>"><?php echo $s['is_subscribed'] ? 'Unsubscribe' : 'Subscribe'; ?></a> |
-                    <a class="danger" href="subscribers.php?delete=<?php echo (int)$s['id']; ?>" onclick="return confirm('Remove this subscriber?');">Delete</a>
+                    <div class="cell-actions">
+                        <a class="btn btn-ghost btn-sm" href="subscribers.php?toggle=<?php echo (int)$s['id']; ?>"><?php echo $s['is_subscribed'] ? 'Unsubscribe' : 'Subscribe'; ?></a>
+                        <a class="btn btn-danger btn-sm" href="subscribers.php?delete=<?php echo (int)$s['id']; ?>" onclick="return confirm('Remove this subscriber?');">Delete</a>
+                    </div>
                 </td>
             </tr>
         <?php endforeach; ?>
         </tbody>
     </table>
+    </div>
 </div>
 
 <?php include __DIR__ . '/includes/admin_footer.php'; ?>

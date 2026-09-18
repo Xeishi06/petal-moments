@@ -23,23 +23,24 @@ $recentOrders = db()->query("
 </div>
 
 <div class="stat-grid">
-    <div class="stat-card"><span>Total Products</span><strong><?php echo (int)$totalProducts; ?></strong></div>
-    <div class="stat-card"><span>Total Orders</span><strong><?php echo (int)$totalOrders; ?></strong></div>
-    <div class="stat-card"><span>Pending Orders</span><strong><?php echo (int)$pendingOrders; ?></strong></div>
-    <div class="stat-card"><span>Pending Inquiries</span><strong><?php echo (int)$pendingInquiries; ?></strong></div>
-    <div class="stat-card"><span>Total Revenue</span><strong>₱<?php echo number_format((float)$totalRevenue, 2); ?></strong></div>
-    <div class="stat-card"><span>Customers</span><strong><?php echo (int)$totalUsers; ?></strong></div>
+    <div class="stat-card stat-sage"><span>Total Products</span><strong><?php echo (int)$totalProducts; ?></strong></div>
+    <div class="stat-card stat-blue"><span>Total Orders</span><strong><?php echo (int)$totalOrders; ?></strong></div>
+    <div class="stat-card stat-gold"><span>Pending Orders</span><strong><?php echo (int)$pendingOrders; ?></strong></div>
+    <div class="stat-card stat-rose"><span>Pending Inquiries</span><strong><?php echo (int)$pendingInquiries; ?></strong></div>
+    <div class="stat-card stat-rose"><span>Total Revenue</span><strong>₱<?php echo number_format((float)$totalRevenue, 2); ?></strong></div>
+    <div class="stat-card stat-blue"><span>Customers</span><strong><?php echo (int)$totalUsers; ?></strong></div>
 </div>
 
 <div class="admin-card">
     <h2>Recent Orders</h2>
+    <div class="table-scroll">
     <table class="admin-table">
         <thead>
             <tr><th>#</th><th>Customer</th><th>Total</th><th>Status</th><th>Date</th></tr>
         </thead>
         <tbody>
         <?php if (empty($recentOrders)): ?>
-            <tr><td colspan="5">No orders yet.</td></tr>
+            <tr><td colspan="5" class="table-empty">No orders yet.</td></tr>
         <?php else: ?>
             <?php foreach ($recentOrders as $o): ?>
             <tr>
@@ -53,6 +54,7 @@ $recentOrders = db()->query("
         <?php endif; ?>
         </tbody>
     </table>
+    </div>
 </div>
 
 <?php include __DIR__ . '/includes/admin_footer.php'; ?>

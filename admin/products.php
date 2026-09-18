@@ -97,34 +97,47 @@ if (isset($_GET['edit'])) {
 
         <label class="checkbox"><input type="checkbox" name="is_featured" <?php echo ($editing && $editing['is_featured']) ? 'checked' : ''; ?>> Featured</label>
 
-        <button type="submit" class="btn btn-primary"><?php echo $editing ? 'Save Changes' : 'Add Product'; ?></button>
-        <?php if ($editing): ?><a class="btn btn-light" href="products.php">Cancel</a><?php endif; ?>
+        <div class="form-actions">
+            <button type="submit" class="btn btn-primary"><?php echo $editing ? 'Save Changes' : 'Add Product'; ?></button>
+            <?php if ($editing): ?><a class="btn btn-light" href="products.php">Cancel</a><?php endif; ?>
+        </div>
     </form>
 </div>
 
 <div class="admin-card">
+    <div class="table-scroll">
     <table class="admin-table">
         <thead>
-            <tr><th>ID</th><th>Name</th><th>Category</th><th>Price</th><th>Stock</th><th>Featured</th><th>Actions</th></tr>
+            <tr><th>Product</th><th>Category</th><th>Price</th><th>Stock</th><th>Featured</th><th>Actions</th></tr>
         </thead>
         <tbody>
         <?php foreach ($products as $p): ?>
             <tr>
-                <td><?php echo (int)$p['id']; ?></td>
-                <td><?php echo e($p['name']); ?></td>
+                <td>
+                    <div class="cell-with-thumb">
+                        <span class="thumb"><?php echo mb_strtoupper(mb_substr($p['name'], 0, 1)); ?></span>
+                        <div>
+                            <strong><?php echo e($p['name']); ?></strong>
+                            <small>#<?php echo (int)$p['id']; ?></small>
+                        </div>
+                    </div>
+                </td>
                 <td><?php echo e($p['category_name'] ?? '—'); ?></td>
                 <td>₱<?php echo number_format((float)$p['price'], 2); ?></td>
-                <td><?php echo (int)$p['stock']; ?></td>
-                <td><?php echo $p['is_featured'] ? 'Yes' : 'No'; ?></td>
+                <td><span class="chip <?php echo $p['stock'] > 0 ? 'chip-in' : 'chip-out'; ?>"><?php echo (int)$p['stock']; ?> <?php echo $p['stock'] == 1 ? 'item' : 'items'; ?></span></td>
+                <td><span class="chip <?php echo $p['is_featured'] ? 'chip-yes' : 'chip-no'; ?>"><?php echo $p['is_featured'] ? 'Yes' : 'No'; ?></span></td>
                 <td>
-                    <a href="products.php?edit=<?php echo (int)$p['id']; ?>">Edit</a> |
-                    <a class="danger" href="products.php?delete=<?php echo (int)$p['id']; ?>"
-                       onclick="return confirm('Delete this product?');">Delete</a>
+                    <div class="cell-actions">
+                        <a class="btn btn-ghost btn-sm" href="products.php?edit=<?php echo (int)$p['id']; ?>">Edit</a>
+                        <a class="btn btn-danger btn-sm" href="products.php?delete=<?php echo (int)$p['id']; ?>"
+                           onclick="return confirm('Delete this product?');">Delete</a>
+                    </div>
                 </td>
             </tr>
         <?php endforeach; ?>
         </tbody>
     </table>
+    </div>
 </div>
 
 <?php include __DIR__ . '/includes/admin_footer.php'; ?>

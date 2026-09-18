@@ -54,29 +54,42 @@ if (isset($_GET['edit'])) {
         <input type="text" name="name" value="<?php echo e($editing['name'] ?? ''); ?>" required>
         <label>Description</label>
         <textarea name="description" rows="2"><?php echo e($editing['description'] ?? ''); ?></textarea>
-        <button type="submit" class="btn btn-primary"><?php echo $editing ? 'Save' : 'Add'; ?></button>
-        <?php if ($editing): ?><a class="btn btn-light" href="categories.php">Cancel</a><?php endif; ?>
+        <div class="form-actions">
+            <button type="submit" class="btn btn-primary"><?php echo $editing ? 'Save' : 'Add'; ?></button>
+            <?php if ($editing): ?><a class="btn btn-light" href="categories.php">Cancel</a><?php endif; ?>
+        </div>
     </form>
 </div>
 
 <div class="admin-card">
+    <div class="table-scroll">
     <table class="admin-table">
-        <thead><tr><th>ID</th><th>Name</th><th>Slug</th><th>Products</th><th>Actions</th></tr></thead>
+        <thead><tr><th>Name</th><th>Slug</th><th>Products</th><th>Actions</th></tr></thead>
         <tbody>
         <?php foreach ($categories as $c): ?>
             <tr>
-                <td><?php echo (int)$c['id']; ?></td>
-                <td><?php echo e($c['name']); ?></td>
-                <td><?php echo e($c['slug']); ?></td>
-                <td><?php echo (int)$c['pcount']; ?></td>
                 <td>
-                    <a href="categories.php?edit=<?php echo (int)$c['id']; ?>">Edit</a> |
-                    <a class="danger" href="categories.php?delete=<?php echo (int)$c['id']; ?>" onclick="return confirm('Delete this category?');">Delete</a>
+                    <div class="cell-with-thumb">
+                        <span class="thumb"><?php echo mb_strtoupper(mb_substr($c['name'], 0, 1)); ?></span>
+                        <div>
+                            <strong><?php echo e($c['name']); ?></strong>
+                            <small>#<?php echo (int)$c['id']; ?></small>
+                        </div>
+                    </div>
+                </td>
+                <td><?php echo e($c['slug']); ?></td>
+                <td><span class="chip chip-yes"><?php echo (int)$c['pcount']; ?></span></td>
+                <td>
+                    <div class="cell-actions">
+                        <a class="btn btn-ghost btn-sm" href="categories.php?edit=<?php echo (int)$c['id']; ?>">Edit</a>
+                        <a class="btn btn-danger btn-sm" href="categories.php?delete=<?php echo (int)$c['id']; ?>" onclick="return confirm('Delete this category?');">Delete</a>
+                    </div>
                 </td>
             </tr>
         <?php endforeach; ?>
         </tbody>
     </table>
+    </div>
 </div>
 
 <?php include __DIR__ . '/includes/admin_footer.php'; ?>
