@@ -41,20 +41,24 @@ $items = $items->fetchAll();
                 <tbody>
                 <?php foreach ($items as $item): ?>
                     <tr>
-                        <td>Arrangement</td>
+                        <td><?php echo e($item['name'] ?? 'Arrangement'); ?></td>
                         <td><?php echo (int)$item['quantity']; ?></td>
-                        <td>₱0.00</td>
-                        <td>₱0.00</td>
+                        <td>₱<?php echo number_format((float)$item['unit_price'], 2); ?></td>
+                        <td>₱<?php echo number_format((float)$item['subtotal'], 2); ?></td>
                     </tr>
                 <?php endforeach; ?>
                 </tbody>
                 <tfoot>
-                    <tr><td colspan="3" class="right">Total</td><td>₱0.00</td></tr>
+                    <tr><td colspan="3" class="right">Total</td><td>₱<?php echo number_format((float)$order['total_amount'], 2); ?></td></tr>
                 </tfoot>
             </table>
 
-            <p><strong>Delivery to:</strong> <?php echo e($order['delivery_address']); ?></p>
-            <p><strong>Payment:</strong> <?php echo e(strtoupper(str_replace('_', ' ', $order['payment_method']))); ?></p>
+            <?php if (($order['fulfillment'] ?? 'delivery') === 'pickup'): ?>
+            <p><strong>🏃 Pick up at:</strong> 688 B. Manuel St., Montalban, Rizal — we'll message you when your flowers are ready.</p>
+            <?php else: ?>
+            <p><strong>Delivery to:</strong> <?php echo e($order['delivery_address'] ?? '—'); ?></p>
+            <?php endif; ?>
+            <p><strong>Payment:</strong> <?php echo e(strtoupper(str_replace('_', ' ', $order['payment_method']))); ?><?php echo ($order['payment_method'] === 'gcash' && !empty($order['payment_ref'])) ? ' • Ref: ' . e($order['payment_ref']) : ''; ?></p>
 
             <a class="btn btn-primary" href="shop.php">Continue Shopping</a>
             <a class="btn btn-dark" href="events.php">Plan an Event</a>

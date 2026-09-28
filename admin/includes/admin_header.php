@@ -12,6 +12,7 @@ $navLabels = [
     'orders'      => 'Orders',
     'users'       => 'Users',
     'inquiries'   => 'Event Inquiries',
+    'messages'    => 'Messages',
     'subscribers' => 'Subscribers',
 ];
 $crumbLabel = $navLabels[$active ?? ''] ?? 'Admin Panel';
@@ -64,6 +65,10 @@ $crumbLabel = $navLabels[$active ?? ''] ?? 'Admin Panel';
             <a href="inquiries.php" class="<?php echo ($active ?? '') === 'inquiries' ? 'active' : ''; ?>">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="14" rx="3"/><path d="m3 7 9 6 9-6"/></svg>
                 Event Inquiries
+            </a>
+            <a href="messages.php" class="<?php echo ($active ?? '') === 'messages' ? 'active' : ''; ?>">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4h16v12H9l-5 4V4Z"/><path d="M8 9h8"/><path d="M8 12h5"/></svg>
+                Messages
             </a>
             <a href="subscribers.php" class="<?php echo ($active ?? '') === 'subscribers' ? 'active' : ''; ?>">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4h16v12H9l-5 4V4Z"/><path d="M8 9h8"/><path d="M8 12h5"/></svg>

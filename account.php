@@ -93,7 +93,7 @@ $myOrders = $orders->fetchAll();
                         <tbody>
                         <?php foreach ($myOrders as $o): ?>
                             <tr>
-                                <td>#<?php echo (int)$o['id']; ?></td>
+                                <td><a href="order.php?id=<?php echo (int)$o['id']; ?>">#<?php echo (int)$o['id']; ?></a></td>
                                 <td>₱<?php echo number_format((float)$o['total_amount'], 2); ?></td>
                                 <td><span class="badge badge-<?php echo e($o['status']); ?>"><?php echo ucfirst(e($o['status'])); ?></span></td>
                                 <td><?php echo date('M j, Y', strtotime($o['created_at'])); ?></td>

@@ -1,7 +1,7 @@
 <?php
-$active = 'orders';
-$adminTitle = 'Orders | Petal Moments Admin';
-include __DIR__ . '/includes/admin_header.php';
+require_once __DIR__ . '/../config/functions.php';
+start_session();
+require_admin();
 
 $pdo = db();
 
@@ -26,8 +26,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['form'] ?? '') === 'status'
     redirect('orders.php');
 }
 
+$active = 'orders';
+$adminTitle = 'Orders | Petal Moments Admin';
+include __DIR__ . '/includes/admin_header.php';
+
 $orders = $pdo->query("
-    SELECT o.id, o.user_id, o.total_amount, o.status, o.created_at, o.payment_method, o.delivery_address,
+    SELECT o.id, o.user_id, o.total_amount, o.status, o.created_at, o.payment_method, o.payment_ref, o.delivery_address, o.fulfillment,
            u.id AS customer_id, u.email,
            (SELECT COUNT(*) FROM order_items oi WHERE oi.order_id=o.id) AS items
     FROM orders o JOIN users u ON u.id=o.user_id
@@ -56,13 +60,17 @@ $orders = $pdo->query("
                         <div>
                             <strong>Customer <?php echo (int)$o['customer_id']; ?></strong>
                             <small><?php echo e($o['email']); ?></small>
-                            <small><?php echo e($o['delivery_address']); ?></small>
+                            <?php if (($o['fulfillment'] ?? 'delivery') === 'pickup'): ?>
+                                <small>🏃 Pickup</small>
+                            <?php else: ?>
+                                <small>🚚 <?php echo e($o['delivery_address'] ?? '—'); ?></small>
+                            <?php endif; ?>
                         </div>
                     </div>
                 </td>
                 <td><?php echo (int)$o['items']; ?></td>
                 <td>₱<?php echo number_format((float)$o['total_amount'], 2); ?></td>
-                <td><?php echo e(strtoupper(str_replace('_',' ',$o['payment_method']))); ?></td>
+                <td><?php echo e(strtoupper(str_replace('_',' ',$o['payment_method']))); ?><?php echo ($o['payment_method'] === 'gcash' && !empty($o['payment_ref'])) ? ' • Ref: ' . e($o['payment_ref']) : ''; ?></td>
                 <td><span class="badge badge-<?php echo e($o['status']); ?>"><?php echo ucfirst(e($o['status'])); ?></span></td>
                 <td><?php echo date('M j, Y', strtotime($o['created_at'])); ?></td>
                 <td>

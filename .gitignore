@@ -14,7 +14,10 @@ desktop.ini
 *.bak
 
 # Uploads (keep code, not user uploads)
-# uploads/
+uploads/categories/*
+!uploads/categories/.gitkeep
+uploads/products/*
+!uploads/products/.gitkeep
 
 # Keep sensitive local config out if you add any later
 # config/local.php

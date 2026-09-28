@@ -13,6 +13,11 @@ switch ($action) {
         $productId = (int)($_POST['product_id'] ?? 0);
         $quantity  = max(1, (int)($_POST['quantity'] ?? 1));
         if ($productId > 0) {
+            if (!empty($_POST['buy_now'])) {
+                // Buy Now: check out this item ONLY, leave the saved cart untouched
+                $_SESSION['buy_now'] = [$productId => $quantity];
+                redirect('checkout.php?mode=buynow');
+            }
             $_SESSION['cart'][$productId] = ($_SESSION['cart'][$productId] ?? 0) + $quantity;
             flash('success', 'Item added to your cart.');
         }
@@ -44,13 +49,19 @@ switch ($action) {
 }
 
 $cartItems = [];
+$cartTotal = 0.0;
 if (!empty($_SESSION['cart'])) {
     $ids = array_keys($_SESSION['cart']);
     $in  = implode(',', array_map('intval', $ids));
     $rows = db()->query("SELECT id, name, price, image, stock FROM products WHERE id IN ($in)")->fetchAll();
     foreach ($rows as $r) {
-        $qty = (int)$_SESSION['cart'][$r['id']];
-        $cartItems[] = array_merge($r, ['quantity' => $qty]);
+        $qty = max(1, (int)$_SESSION['cart'][$r['id']]);
+        // Clamp to available stock so checkout never oversells
+        if ((int)$r['stock'] > 0) { $qty = min($qty, (int)$r['stock']); }
+        $_SESSION['cart'][$r['id']] = $qty;
+        $subtotal = (float)$r['price'] * $qty;
+        $cartTotal += $subtotal;
+        $cartItems[] = array_merge($r, ['quantity' => $qty, 'subtotal' => $subtotal]);
     }
 }
 ?>
@@ -81,14 +92,14 @@ if (!empty($_SESSION['cart'])) {
                         <?php foreach ($cartItems as $item): ?>
                         <tr>
                             <td>
-                                <a href="product.php?id=<?php echo (int)$item['id']; ?>">Arrangement</a>
+                                <a href="product.php?id=<?php echo (int)$item['id']; ?>"><?php echo e($item['name']); ?></a>
                             </td>
-                            <td>₱0.00</td>
+                            <td>₱<?php echo number_format((float)$item['price'], 2); ?></td>
                             <td>
                                 <input type="number" name="qty[<?php echo (int)$item['id']; ?>]"
                                        value="<?php echo (int)$item['quantity']; ?>" min="0" max="<?php echo max(1,(int)$item['stock']); ?>">
                             </td>
-                            <td>₱0.00</td>
+                            <td>₱<?php echo number_format((float)$item['subtotal'], 2); ?></td>
                             <td><a class="remove-link" href="cart.php?action=remove&id=<?php echo (int)$item['id']; ?>">Remove</a></td>
                         </tr>
                         <?php endforeach; ?>
@@ -96,7 +107,7 @@ if (!empty($_SESSION['cart'])) {
                     <tfoot>
                         <tr>
                             <td colspan="3" class="right">Total</td>
-                            <td colspan="2">₱0.00</td>
+                            <td colspan="2">₱<?php echo number_format((float)$cartTotal, 2); ?></td>
                         </tr>
                     </tfoot>
                 </table>

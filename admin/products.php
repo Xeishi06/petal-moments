@@ -1,7 +1,7 @@
 <?php
-$active = 'products';
-$adminTitle = 'Products | Petal Moments Admin';
-include __DIR__ . '/includes/admin_header.php';
+require_once __DIR__ . '/../config/functions.php';
+start_session();
+require_admin();
 
 $pdo = db();
 
@@ -22,8 +22,34 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['form'] ?? '') === 'product
     $featured  = isset($_POST['is_featured']) ? 1 : 0;
     $slug      = strtolower(preg_replace('/[^a-z0-9]+/i', '-', $name));
 
+    // File upload takes precedence over URL if a file was picked
+    $uploadError = null;
+    if (!empty($_FILES['image_file']['name']) && ($_FILES['image_file']['error'] ?? UPLOAD_ERR_NO_FILE) === UPLOAD_ERR_OK) {
+        $allowed = ['jpg' => 'image/jpeg', 'jpeg' => 'image/jpeg', 'png' => 'image/png', 'webp' => 'image/webp', 'gif' => 'image/gif'];
+        $ext = strtolower(pathinfo($_FILES['image_file']['name'], PATHINFO_EXTENSION));
+        $finfo = new finfo(FILEINFO_MIME_TYPE);
+        $mime = $finfo->file($_FILES['image_file']['tmp_name']);
+        if (!isset($allowed[$ext]) || $allowed[$ext] !== $mime) {
+            $uploadError = 'Please pick a JPG, PNG, WEBP or GIF image.';
+        } elseif ($_FILES['image_file']['size'] > 2 * 1024 * 1024) {
+            $uploadError = 'Image must be under 2MB.';
+        } else {
+            $base = preg_replace('/[^a-z0-9]+/i', '-', strtolower($name !== '' ? $name : 'product'));
+            $filename = trim($base, '-') . '-' . time() . '.' . $ext;
+            $destDir = __DIR__ . '/../uploads/products';
+            if (!is_dir($destDir)) { mkdir($destDir, 0755, true); }
+            if (move_uploaded_file($_FILES['image_file']['tmp_name'], $destDir . '/' . $filename)) {
+                $image = 'uploads/products/' . $filename;
+            } else {
+                $uploadError = 'Could not save uploaded file.';
+            }
+        }
+    }
+
     if ($name === '' || $price <= 0) {
         flash('error', 'Product name and a valid price are required.');
+    } elseif ($uploadError !== null) {
+        flash('error', $uploadError);
     } else {
         if ($id > 0) {
             $pdo->prepare("UPDATE products SET category_id=:c, name=:n, slug=:s, description=:d, price=:p, image=:i, stock=:st, is_featured=:f WHERE id=:id")
@@ -37,6 +63,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['form'] ?? '') === 'product
         redirect('products.php');
     }
 }
+
+$active = 'products';
+$adminTitle = 'Products | Petal Moments Admin';
+include __DIR__ . '/includes/admin_header.php';
 
 $categories = $pdo->query("SELECT * FROM categories ORDER BY name")->fetchAll();
 $products = $pdo->query("
@@ -60,7 +90,7 @@ if (isset($_GET['edit'])) {
 
 <div class="admin-card">
     <h2><?php echo $editing ? 'Edit Product #' . (int)$editing['id'] : 'Add New Product'; ?></h2>
-    <form method="post" action="products.php" class="admin-form">
+    <form method="post" action="products.php" class="admin-form" enctype="multipart/form-data">
         <input type="hidden" name="form" value="product">
         <input type="hidden" name="id" value="<?php echo $editing ? (int)$editing['id'] : 0; ?>">
 
@@ -90,7 +120,13 @@ if (isset($_GET['edit'])) {
         <input type="number" name="stock" min="0" value="<?php echo e($editing['stock'] ?? '0'); ?>">
 
         <label>Image URL</label>
-        <input type="text" name="image" value="<?php echo e($editing['image'] ?? ''); ?>">
+        <input type="text" name="image" value="<?php echo e($editing['image'] ?? ''); ?>" placeholder="https://... or leave blank">
+        <div class="or-divider">OR</div>
+        <label>Pick a picture from your computer</label>
+        <input type="file" name="image_file" accept="image/jpeg,image/png,image/webp,image/gif">
+        <?php if (!empty($editing['image'])): ?>
+            <div class="img-preview"><img src="<?php echo e($editing['image']); ?>" alt="Product preview"><small>Current image</small></div>
+        <?php endif; ?>
 
         <label>Description</label>
         <textarea name="description" rows="3"><?php echo e($editing['description'] ?? ''); ?></textarea>
@@ -115,7 +151,11 @@ if (isset($_GET['edit'])) {
             <tr>
                 <td>
                     <div class="cell-with-thumb">
-                        <span class="thumb"><?php echo mb_strtoupper(mb_substr($p['name'], 0, 1)); ?></span>
+                        <?php if (!empty($p['image'])): ?>
+                            <img src="<?php echo e($p['image']); ?>" alt="" style="width:36px;height:36px;object-fit:cover;border-radius:8px;">
+                        <?php else: ?>
+                            <span class="thumb"><?php echo mb_strtoupper(mb_substr($p['name'], 0, 1)); ?></span>
+                        <?php endif; ?>
                         <div>
                             <strong><?php echo e($p['name']); ?></strong>
                             <small>#<?php echo (int)$p['id']; ?></small>

@@ -4,6 +4,8 @@ start_session();
 
 $categorySlug = $_GET['category'] ?? '';
 $search       = trim($_GET['q'] ?? '');
+$sort         = $_GET['sort'] ?? 'newest';
+if (!in_array($sort, ['newest', 'price_asc', 'price_desc'], true)) { $sort = 'newest'; }
 
 $sql   = "SELECT p.*, c.name AS category_name
           FROM products p
@@ -19,13 +21,19 @@ if ($search !== '') {
     $sql .= " AND (p.name LIKE :q OR p.description LIKE :q)";
     $params[':q'] = '%' . $search . '%';
 }
-$sql .= " ORDER BY p.id DESC";
+$sql .= $sort === 'price_asc' ? " ORDER BY p.price ASC" : ($sort === 'price_desc' ? " ORDER BY p.price DESC" : " ORDER BY p.id DESC");
 
 $stmt = db()->prepare($sql);
 $stmt->execute($params);
 $products = $stmt->fetchAll();
 
 $allCats = db()->query("SELECT id, name, slug FROM categories WHERE is_active = 1 ORDER BY id")->fetchAll();
+$savedIds = [];
+if (is_logged_in()) {
+    $savedIds = db()->prepare("SELECT product_id FROM wishlist WHERE user_id = :u");
+    $savedIds->execute([':u' => $_SESSION['user_id']]);
+    $savedIds = array_map('intval', array_column($savedIds->fetchAll(), 'product_id'));
+}
 $activeCatName = '';
 foreach ($allCats as $c) { if ($c['slug'] === $categorySlug) { $activeCatName = $c['name']; break; } }
 ?>
@@ -41,7 +49,13 @@ foreach ($allCats as $c) { if ($c['slug'] === $categorySlug) { $activeCatName = 
         </div>
 
         <form method="get" action="shop.php" class="shop-filter">
+            <?php if ($categorySlug !== ''): ?><input type="hidden" name="category" value="<?php echo e($categorySlug); ?>"><?php endif; ?>
             <input type="text" name="q" placeholder="Search arrangements..." value="<?php echo e($search); ?>" aria-label="Search products">
+            <select name="sort" aria-label="Sort products" onchange="this.form.submit()">
+                <option value="newest"<?php echo $sort === 'newest' ? ' selected' : ''; ?>>Newest</option>
+                <option value="price_asc"<?php echo $sort === 'price_asc' ? ' selected' : ''; ?>>Price: Low to High</option>
+                <option value="price_desc"<?php echo $sort === 'price_desc' ? ' selected' : ''; ?>>Price: High to Low</option>
+            </select>
             <button class="btn btn-primary btn-small" type="submit">Search</button>
         </form>
 
@@ -58,15 +72,16 @@ foreach ($allCats as $c) { if ($c['slug'] === $categorySlug) { $activeCatName = 
             <?php foreach ($products as $p): ?>
             <article class="product-card">
                 <div class="product-image">
-                    <a class="heart-btn" href="product.php?id=<?php echo (int)$p['id']; ?>" aria-label="View arrangement">→</a>
-                    <img src="<?php echo display_image(); ?>" alt="Arrangement">
+                    <a class="view-btn" href="product.php?id=<?php echo (int)$p['id']; ?>" aria-label="View arrangement">View</a>
+                    <button type="button" class="fav-btn<?php echo in_array((int)$p['id'], $savedIds, true) ? ' active' : ''; ?>" data-wishlist="<?php echo (int)$p['id']; ?>" aria-label="Save to favorites" aria-pressed="<?php echo in_array((int)$p['id'], $savedIds, true) ? 'true' : 'false'; ?>">♥</button>
+                    <img src="<?php echo e($p['image'] ?: 'https://images.unsplash.com/photo-1490750967868-88aa4486c946?auto=format&fit=crop&w=700&q=80'); ?>" alt="<?php echo e($p['name'] ?? 'Arrangement'); ?>">
                 </div>
                 <div class="product-details">
                     <div>
-                        <h3><?php echo display_name($p); ?></h3>
-                        <p>For any occasion</p>
+                        <h3><?php echo e($p['name'] ?? 'Arrangement'); ?></h3>
+                        <p><?php echo e($p['category_name'] ?? 'For any occasion'); ?></p>
                     </div>
-                    <strong>₱<?php echo display_price(); ?></strong>
+                    <strong>₱<?php echo number_format((float)($p['price'] ?? 0), 2); ?></strong>
                 </div>
                 <div class="product-card-actions">
                     <a class="btn btn-dark btn-small" href="product.php?id=<?php echo (int)$p['id']; ?>">View Details</a>

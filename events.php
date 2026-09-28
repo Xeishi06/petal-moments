@@ -3,24 +3,39 @@ require_once __DIR__ . '/config/functions.php';
 start_session();
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    require_login();
+    $name       = trim($_POST['name'] ?? '');
+    $email      = trim($_POST['email'] ?? '');
+    $phone      = trim($_POST['phone'] ?? '');
     $eventType  = trim($_POST['event_type'] ?? '');
     $eventDate  = $_POST['event_date'] ?? '';
-    $guestCount = (int)($_POST['guest_count'] ?? 0);
-    $budget     = (float)($_POST['budget'] ?? 0);
+    $venue      = trim($_POST['venue'] ?? '');
+    $eventTime  = trim($_POST['event_time'] ?? '');
+    $serviceType = trim($_POST['service_type'] ?? '');
+    $prefs      = trim($_POST['preferences'] ?? '');
+    $guestCount = (int)str_replace(',', '', $_POST['guest_count'] ?? 0);
+    $budget     = (float)str_replace(',', '', $_POST['budget'] ?? 0);
     $message    = trim($_POST['message'] ?? '');
 
-    if ($eventType === '') {
-        flash('error', 'Please select an event type.');
+    if ($name === '' || $email === '' || $eventType === '') {
+        flash('error', 'Name, email and event type are required.');
+    } elseif (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
+        flash('error', 'Please enter a valid email address.');
     } else {
         $stmt = db()->prepare("
-            INSERT INTO event_inquiries (user_id, event_type, event_date, guest_count, budget, message, status)
-            VALUES (:uid, :et, :ed, :gc, :bd, :msg, 'pending')
+            INSERT INTO event_inquiries (user_id, name, email, phone, event_type, event_date, venue, event_time, service_type, preferences, guest_count, budget, message, status)
+            VALUES (:uid, :name, :email, :phone, :et, :ed, :venue, :etime, :stype, :prefs, :gc, :bd, :msg, 'pending')
         ");
         $stmt->execute([
             ':uid' => is_logged_in() ? $_SESSION['user_id'] : null,
+            ':name' => $name,
+            ':email' => $email,
+            ':phone' => $phone !== '' ? $phone : null,
             ':et'  => $eventType,
             ':ed'  => $eventDate !== '' ? $eventDate : null,
+            ':venue' => $venue !== '' ? $venue : null,
+            ':etime' => $eventTime !== '' ? $eventTime : null,
+            ':stype' => $serviceType !== '' ? $serviceType : null,
+            ':prefs' => $prefs !== '' ? $prefs : null,
             ':gc'  => $guestCount > 0 ? $guestCount : null,
             ':bd'  => $budget > 0 ? $budget : null,
             ':msg' => $message,
@@ -60,8 +75,21 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
         <div class="auth-wrap">
             <div class="auth-card">
-                <?php if (is_logged_in()): ?>
                 <form method="post" action="events.php">
+                    <div class="form-row">
+                        <div>
+                            <label>Full name *</label>
+                            <input type="text" name="name" value="<?php echo e(is_logged_in() ? $_SESSION['name'] : ''); ?>" required>
+                        </div>
+                        <div>
+                            <label>Email *</label>
+                            <input type="email" name="email" value="<?php echo e(is_logged_in() ? ($_SESSION['email'] ?? '') : ''); ?>" required>
+                        </div>
+                    </div>
+
+                    <label>Phone</label>
+                    <input type="text" name="phone" placeholder="09xx xxx xxxx">
+
                     <label>Event type *</label>
                     <select name="event_type" required>
                         <option value="">-- Select --</option>
@@ -78,26 +106,43 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
                     <div class="form-row">
                         <div>
-                            <label>Guest count</label>
-                            <input type="number" name="guest_count" min="0">
+                            <label>Event time</label>
+                            <input type="time" name="event_time">
                         </div>
                         <div>
-                            <label>Budget (₱)</label>
-                            <input type="number" name="budget" min="0" step="0.01">
+                            <label>Venue / location</label>
+                            <input type="text" name="venue" placeholder="e.g. Casa Verde, Montalban">
                         </div>
                     </div>
 
-                    <label>Tell us about your event</label>
-                    <textarea name="message" rows="4" placeholder="Venue, theme, colors, flowers you like..."></textarea>
+                    <label>What do you need?</label>
+                    <select name="service_type">
+                        <option value="">-- Select --</option>
+                        <option value="full_styling">Full event styling</option>
+                        <option value="flowers_only">Flowers only</option>
+                        <option value="setup_teardown">Setup & teardown included</option>
+                    </select>
+
+                    <div class="form-row">
+                        <div>
+                            <label>Guest count</label>
+                            <input type="number" name="guest_count" min="0">
+                        </div>
+                            <div>
+                                <label>Budget (₱)</label>
+                                <input type="text" name="budget" inputmode="decimal" placeholder="e.g. 5,000">
+                            </div>
+                    </div>
+
+                    <label>Theme, colors & flowers you like</label>
+                    <textarea name="preferences" rows="2" placeholder="e.g. blush pink & white, roses and baby's breath..."></textarea>
+
+                    <label>Anything else we should know?</label>
+                    <textarea name="message" rows="4" placeholder="Program flow, setup time, other requests..."></textarea>
 
                     <button type="submit" class="btn btn-primary">Submit Inquiry</button>
                 </form>
-                <?php else: ?>
-                    <h2>Log in to send an inquiry</h2>
-                    <p class="empty-state">You must be signed in to submit an event styling inquiry.</p>
-                    <a class="btn btn-primary" href="login.php">Log In</a>
-                    <a class="btn btn-dark" href="register.php">Create Account</a>
-                <?php endif; ?>
+                <p class="auth-alt">No account needed — we'll contact you directly.</p>
             </div>
         </div>
     </div>

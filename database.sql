@@ -68,10 +68,12 @@ CREATE TABLE orders (
   id              INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
   user_id         INT UNSIGNED   NOT NULL,
   total_amount    DECIMAL(10,2)  NOT NULL DEFAULT 0.00,
-  delivery_address VARCHAR(255)  NOT NULL,
+  delivery_address VARCHAR(255)  NULL,
   delivery_date   DATE           NULL,
   delivery_notes  TEXT           NULL,
-  payment_method  ENUM('cash_on_delivery','gcash') NOT NULL DEFAULT 'cash_on_delivery',
+  payment_method  ENUM('cash_on_delivery','gcash','pay_on_pickup') NOT NULL DEFAULT 'cash_on_delivery',
+  payment_ref     VARCHAR(100)   NULL,
+  fulfillment     ENUM('delivery','pickup') NOT NULL DEFAULT 'delivery',
   status          ENUM('pending','processing','delivered','cancelled')
                                  NOT NULL DEFAULT 'pending',
   created_at      TIMESTAMP      NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -144,12 +146,34 @@ CREATE TABLE event_inquiries (
   phone       VARCHAR(30)    NULL,
   event_type  VARCHAR(80)    NOT NULL,
   event_date  DATE           NULL,
+  venue       VARCHAR(255)   NULL,
+  event_time  TIME           NULL,
+  service_type VARCHAR(50)   NULL,
+  preferences TEXT           NULL,
   guest_count INT            NULL,
   budget      DECIMAL(10,2)  NULL,
   message     TEXT           NULL,
   status      ENUM('pending','contacted','completed') NOT NULL DEFAULT 'pending',
   created_at  TIMESTAMP      NOT NULL DEFAULT CURRENT_TIMESTAMP,
   CONSTRAINT fk_inquiry_user
+    FOREIGN KEY (user_id) REFERENCES users(id)
+    ON DELETE SET NULL ON UPDATE CASCADE
+) ENGINE=InnoDB;
+
+-- ------------------------------------------------------------
+-- CONTACT MESSAGES (contact form inbox)
+-- ------------------------------------------------------------
+DROP TABLE IF EXISTS contact_messages;
+CREATE TABLE contact_messages (
+  id          INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  user_id     INT UNSIGNED   NULL,
+  name        VARCHAR(120)   NOT NULL,
+  email       VARCHAR(120)   NOT NULL,
+  subject     VARCHAR(150)   NULL,
+  message     TEXT           NOT NULL,
+  status      ENUM('new','read','replied') NOT NULL DEFAULT 'new',
+  created_at  TIMESTAMP      NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  CONSTRAINT fk_contact_user
     FOREIGN KEY (user_id) REFERENCES users(id)
     ON DELETE SET NULL ON UPDATE CASCADE
 ) ENGINE=InnoDB;
@@ -188,13 +212,25 @@ INSERT INTO categories (name, slug, description) VALUES
 
 -- Products
 INSERT INTO products (category_id, name, slug, description, price, image, stock, is_featured) VALUES
-(3, 'Blush Garden',     'blush-garden',     'Roses, Carnations and seasonal fillers in soft blush tones.', 899.00,  'https://images.unsplash.com/photo-1518895949257-7621c3c786d7?auto=format&fit=crop&w=800&q=80', 0, 1),
-(3, 'Pure Grace',       'pure-grace',       'White roses, baby\'s breath and fresh greens.',                1099.00, 'https://images.unsplash.com/photo-1527061011665-3652c757a4d4?auto=format&fit=crop&w=800&q=80', 0, 1),
-(3, 'Sunshine Hello',   'sunshine-hello',   'Sunflowers, chrysanthemums and bright greens.',                799.00,  'https://images.unsplash.com/photo-1533616688419-b7a585564566?auto=format&fit=crop&w=800&q=80', 0, 1),
-(3, 'Classic Romance',  'classic-romance',  'Premium red roses and eucalyptus.',                           1299.00, 'https://images.unsplash.com/photo-1561181286-d3fee7d55364?auto=format&fit=crop&w=800&q=80', 0, 1),
-(1, 'Birthday Joy',     'birthday-joy',     'A cheerful medley perfect for celebrations.',                 999.00,  'https://images.unsplash.com/photo-1490750967868-88aa4486c946?auto=format&fit=crop&w=1200&q=85', 0, 0),
-(2, 'Wedding Radiance', 'wedding-radiance', 'An elegant white arrangement for wedding ceremonies.',        1599.00, 'https://images.unsplash.com/photo-1523438885200-e635ba2c371e?auto=format&fit=crop&w=700&q=80', 0, 0),
-(4, 'Sympathy Tribute', 'sympathy-tribute', 'A gentle, calming tribute for moments of loss.',              1199.00, 'https://images.unsplash.com/photo-1487070183336-b863922373d4?auto=format&fit=crop&w=700&q=80', 0, 0);
+(3, 'Blush Garden',     'blush-garden',     'Roses, Carnations and seasonal fillers in soft blush tones.', 899.00,  'https://images.unsplash.com/photo-1518895949257-7621c3c786d7?auto=format&fit=crop&w=800&q=80', 50, 1),
+(3, 'Pure Grace',       'pure-grace',       'White roses, baby\'s breath and fresh greens.',                1099.00, 'https://images.unsplash.com/photo-1527061011665-3652c757a4d4?auto=format&fit=crop&w=800&q=80', 50, 1),
+(3, 'Sunshine Hello',   'sunshine-hello',   'Sunflowers, chrysanthemums and bright greens.',                799.00,  'https://images.unsplash.com/photo-1533616688419-b7a585564566?auto=format&fit=crop&w=800&q=80', 50, 1),
+(3, 'Classic Romance',  'classic-romance',  'Premium red roses and eucalyptus.',                           1299.00, 'https://images.unsplash.com/photo-1561181286-d3fee7d55364?auto=format&fit=crop&w=800&q=80', 50, 1),
+(1, 'Birthday Joy',     'birthday-joy',     'A cheerful medley perfect for celebrations.',                 999.00,  'https://images.unsplash.com/photo-1490750967868-88aa4486c946?auto=format&fit=crop&w=1200&q=85', 50, 0),
+(2, 'Wedding Radiance', 'wedding-radiance', 'An elegant white arrangement for wedding ceremonies.',        1599.00, 'https://images.unsplash.com/photo-1523438885200-e635ba2c371e?auto=format&fit=crop&w=700&q=80', 50, 0),
+(4, 'Sympathy Tribute', 'sympathy-tribute', 'A gentle, calming tribute for moments of loss.',              1199.00, 'https://images.unsplash.com/photo-1487070183336-b863922373d4?auto=format&fit=crop&w=700&q=80', 50, 0);
+
+-- Placeholder products so each category shows 4 items (admin can edit/replace)
+INSERT INTO products (category_id, name, slug, description, price, image, stock, is_featured) VALUES
+(1, 'Birthday Bliss', 'birthday-bliss', 'Placeholder arrangement - admin will update.', 899.00, 'https://images.unsplash.com/photo-1494972308805-463bc619d34e?auto=format&fit=crop&w=800&q=80', 50, 0),
+(1, 'Birthday Bloom', 'birthday-bloom', 'Placeholder arrangement - admin will update.', 1099.00, 'https://images.unsplash.com/photo-1520763185298-1b434c919102?auto=format&fit=crop&w=800&q=80', 50, 0),
+(1, 'Birthday Cheer', 'birthday-cheer', 'Placeholder arrangement - admin will update.', 799.00, 'https://images.unsplash.com/photo-1508610048659-a06b669e3321?auto=format&fit=crop&w=800&q=80', 50, 0),
+(2, 'Wedding Bliss', 'wedding-bliss', 'Placeholder arrangement - admin will update.', 1499.00, 'https://images.unsplash.com/photo-1519225421980-715cb0215aed?auto=format&fit=crop&w=800&q=80', 50, 0),
+(2, 'Wedding Grace', 'wedding-grace', 'Placeholder arrangement - admin will update.', 1699.00, 'https://images.unsplash.com/photo-1465495976277-4387d4b0b4c6?auto=format&fit=crop&w=800&q=80', 50, 0),
+(2, 'Wedding Dream', 'wedding-dream', 'Placeholder arrangement - admin will update.', 1899.00, 'https://images.unsplash.com/photo-1522673607200-164d1b6ce486?auto=format&fit=crop&w=800&q=80', 50, 0),
+(4, 'Gentle Sympathy', 'gentle-sympathy', 'Placeholder arrangement - admin will update.', 1099.00, 'https://images.unsplash.com/photo-1457089328109-e5d9bd499191?auto=format&fit=crop&w=800&q=80', 50, 0),
+(4, 'Peaceful Farewell', 'peaceful-farewell', 'Placeholder arrangement - admin will update.', 1299.00, 'https://images.unsplash.com/photo-1469259943454-aa100abba749?auto=format&fit=crop&w=800&q=80', 50, 0),
+(4, 'Eternal Rest', 'eternal-rest', 'Placeholder arrangement - admin will update.', 1399.00, 'https://images.unsplash.com/photo-1562690868-60bbe7293e94?auto=format&fit=crop&w=800&q=80', 50, 0);
 
 -- Newsletter sample subscribers
 INSERT INTO newsletter_subscribers (email) VALUES

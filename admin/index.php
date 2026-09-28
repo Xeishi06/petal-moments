@@ -23,12 +23,12 @@ $recentOrders = db()->query("
 </div>
 
 <div class="stat-grid">
-    <div class="stat-card stat-sage"><span>Total Products</span><strong><?php echo (int)$totalProducts; ?></strong></div>
-    <div class="stat-card stat-blue"><span>Total Orders</span><strong><?php echo (int)$totalOrders; ?></strong></div>
-    <div class="stat-card stat-gold"><span>Pending Orders</span><strong><?php echo (int)$pendingOrders; ?></strong></div>
-    <div class="stat-card stat-rose"><span>Pending Inquiries</span><strong><?php echo (int)$pendingInquiries; ?></strong></div>
-    <div class="stat-card stat-rose"><span>Total Revenue</span><strong>₱<?php echo number_format((float)$totalRevenue, 2); ?></strong></div>
-    <div class="stat-card stat-blue"><span>Customers</span><strong><?php echo (int)$totalUsers; ?></strong></div>
+    <a class="stat-card stat-sage" href="products.php"><span>Total Products</span><strong><?php echo (int)$totalProducts; ?></strong><small>Manage →</small></a>
+    <a class="stat-card stat-blue" href="orders.php"><span>Total Orders</span><strong><?php echo (int)$totalOrders; ?></strong><small>View all →</small></a>
+    <a class="stat-card stat-gold" href="orders.php"><span>Pending Orders</span><strong><?php echo (int)$pendingOrders; ?></strong><small>Review →</small></a>
+    <a class="stat-card stat-rose" href="inquiries.php"><span>Pending Inquiries</span><strong><?php echo (int)$pendingInquiries; ?></strong><small>Review →</small></a>
+    <a class="stat-card stat-rose" href="orders.php"><span>Total Revenue</span><strong>₱<?php echo number_format((float)$totalRevenue, 2); ?></strong><small>View orders →</small></a>
+    <a class="stat-card stat-blue" href="users.php"><span>Customers</span><strong><?php echo (int)$totalUsers; ?></strong><small>Manage →</small></a>
 </div>
 
 <div class="admin-card">

@@ -31,6 +31,21 @@ function get_flashes()
     return $flashes;
 }
 
+function csrf_token()
+{
+    start_session();
+    if (empty($_SESSION['csrf'])) {
+        $_SESSION['csrf'] = bin2hex(random_bytes(32));
+    }
+    return $_SESSION['csrf'];
+}
+
+function verify_csrf($token)
+{
+    start_session();
+    return isset($_SESSION['csrf']) && is_string($token) && hash_equals($_SESSION['csrf'], $token);
+}
+
 function is_logged_in()
 {
     return isset($_SESSION['user_id']);
@@ -71,19 +86,4 @@ function logout_user()
 {
     $_SESSION = [];
     session_destroy();
-}
-
-function display_name($product)
-{
-    return 'Arrangement';
-}
-
-function display_image()
-{
-    return 'placeholder.svg';
-}
-
-function display_price()
-{
-    return number_format(0, 2);
 }
