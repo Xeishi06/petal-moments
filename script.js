@@ -87,6 +87,44 @@ if (modal) {
   });
 }
 
+// ===== Logout confirmation modal =====
+(function () {
+  const modal = document.getElementById("logoutModal");
+  const confirmBtn = document.getElementById("logoutConfirm");
+  if (!modal || !confirmBtn) return;
+  function openLogout(href) {
+    confirmBtn.setAttribute("href", href);
+    modal.classList.add("open");
+    modal.setAttribute("aria-hidden", "false");
+    document.body.classList.add("modal-open");
+  }
+  function closeLogout() {
+    modal.classList.remove("open");
+    modal.setAttribute("aria-hidden", "true");
+    document.body.classList.remove("modal-open");
+  }
+  document.querySelectorAll('a[href="logout.php"], a[href="../logout.php"]').forEach((link) => {
+    // Skip the confirm button itself and mobile-menu duplicates handled below
+    if (link.id === "logoutConfirm") return;
+    link.addEventListener("click", (e) => {
+      e.preventDefault();
+      // Close the mobile nav if it's open
+      const nav = document.getElementById("mainNav");
+      if (nav) nav.classList.remove("open");
+      openLogout(link.getAttribute("href"));
+    });
+  });
+  document.querySelectorAll("[data-logout-close]").forEach((btn) => {
+    btn.addEventListener("click", closeLogout);
+  });
+  modal.addEventListener("click", (e) => {
+    if (e.target === modal) closeLogout();
+  });
+  document.addEventListener("keydown", (e) => {
+    if (e.key === "Escape") closeLogout();
+  });
+})();
+
 // ===== Auto-dismiss flash messages after 4s =====
 (function () {
   const flashes = document.querySelectorAll(".flash-alert");

@@ -52,6 +52,22 @@
 
 </footer>
 
+<div class="modal-overlay" id="logoutModal" aria-hidden="true">
+    <div class="modal-card auth-modal-card" role="dialog" aria-modal="true" aria-labelledby="logoutModalTitle">
+        <button type="button" class="modal-close" data-logout-close aria-label="Close">✕</button>
+        <div class="auth-modal-body">
+            <span class="auth-modal-heart" aria-hidden="true">👋</span>
+            <span class="eyebrow">SEE YOU SOON</span>
+            <h2 id="logoutModalTitle">Log out of <em>Petal Moments?</em></h2>
+            <p>You'll need to log back in to order flowers or view your favorites.</p>
+            <div class="auth-modal-actions">
+                <button type="button" class="btn btn-dark" data-logout-close>Stay Logged In</button>
+                <a class="btn btn-primary" id="logoutConfirm" href="logout.php">Log Out</a>
+            </div>
+        </div>
+    </div>
+</div>
+
 <div class="modal-overlay" id="authModal" aria-hidden="true">
     <div class="modal-card auth-modal-card" role="dialog" aria-modal="true" aria-labelledby="authModalTitle">
         <button type="button" class="modal-close" data-auth-close aria-label="Close">✕</button>
