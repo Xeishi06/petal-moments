@@ -203,12 +203,12 @@ INSERT INTO users (first_name, last_name, email, password, phone, address, role)
 VALUES ('Maria', 'Santos', 'customer@petalmoments.com',
         '$2y$10$hVrgugJib6/fp7/TlULkvOcJ0kLsCuFSeDVCU5OjjsS4aj5AsHfbK', '09171234567', '123 Rizal St., Montalban', 'customer');
 
--- Categories
-INSERT INTO categories (name, slug, description) VALUES
-('Birthday',   'birthday',  'Bright and joyful arrangements for birthdays.'),
-('Weddings',   'weddings',  'Sweet and timeless blooms for your big day.'),
-('Bouquet',    'bouquet',   'Classic hand-tied bouquets for any occasion.'),
-('Funeral',    'funeral',   'Gentle and meaningful arrangements of sympathy.');
+-- Categories (images synced from live admin 2026-09-29)
+INSERT INTO categories (name, slug, description, image) VALUES
+('Birthday',   'birthday',  'Bright and joyful arrangements for birthdays.', 'https://www.avlci.com/wp-content/uploads/2023/11/386793877_817737667024693_8748246655558808406_n-768x1024.jpg'),
+('Weddings',   'weddings',  'Sweet and timeless blooms for your big day.', 'https://images.unsplash.com/photo-1523438885200-e635ba2c371e?auto=format&fit=crop&w=700&q=80'),
+('Bouquet',    'bouquet',   'Classic hand-tied bouquets for any occasion.', 'https://images.unsplash.com/photo-1781925516902-7d2e9e8cbaea?q=80&w=736&auto=format&fit=crop'),
+('Funeral',    'funeral',   'Gentle and meaningful arrangements of sympathy.', 'https://images.unsplash.com/photo-1487070183336-b863922373d4?auto=format&fit=crop&w=700&q=80');
 
 -- Products
 INSERT INTO products (category_id, name, slug, description, price, image, stock, is_featured) VALUES
