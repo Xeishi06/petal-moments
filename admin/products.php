@@ -82,16 +82,16 @@ if (isset($_GET['edit'])) {
     $editing = $st->fetch();
 }
 
-// First 4 featured (by id) are the ones rotating in the homepage hero slideshow
+// All featured (active) products rotate in the homepage hero slideshow
 $heroIds = array_map('intval', array_column(
-    $pdo->query("SELECT id FROM products WHERE is_featured = 1 AND is_active = 1 ORDER BY id LIMIT 4")->fetchAll(),
+    $pdo->query("SELECT id FROM products WHERE is_featured = 1 AND is_active = 1 ORDER BY id")->fetchAll(),
     'id'
 ));
 ?>
 
 <div class="admin-card">
     <h1>Products</h1>
-    <p>Manage your floral arrangements. Tip: tick <strong>Featured</strong> to put a product in homepage <strong>Best Sellers + hero slideshow</strong> (first 4 featured, in order).</p>
+    <p>Manage your floral arrangements. Tip: tick <strong>Featured</strong> to put a product in homepage <strong>Best Sellers + hero slideshow</strong>.</p>
 </div>
 
 <div class="admin-card">

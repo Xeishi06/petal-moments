@@ -8,7 +8,7 @@ $featured = db()->query("
     FROM products p
     LEFT JOIN categories c ON c.id = p.category_id
     WHERE p.is_active = 1 AND p.is_featured = 1
-    ORDER BY p.id LIMIT 4
+    ORDER BY p.id
 ")->fetchAll();
 $savedIds = [];
 if (is_logged_in()) {
