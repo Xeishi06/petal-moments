@@ -81,11 +81,17 @@ if (isset($_GET['edit'])) {
     $st->execute([':id'=>(int)$_GET['edit']]);
     $editing = $st->fetch();
 }
+
+// First 4 featured (by id) are the ones rotating in the homepage hero slideshow
+$heroIds = array_map('intval', array_column(
+    $pdo->query("SELECT id FROM products WHERE is_featured = 1 AND is_active = 1 ORDER BY id LIMIT 4")->fetchAll(),
+    'id'
+));
 ?>
 
 <div class="admin-card">
     <h1>Products</h1>
-    <p>Manage your floral arrangements.</p>
+    <p>Manage your floral arrangements. Tip: tick <strong>Featured</strong> to put a product in homepage <strong>Best Sellers + hero slideshow</strong> (first 4 featured, in order).</p>
 </div>
 
 <div class="admin-card">
@@ -131,7 +137,7 @@ if (isset($_GET['edit'])) {
         <label>Description</label>
         <textarea name="description" rows="3"><?php echo e($editing['description'] ?? ''); ?></textarea>
 
-        <label class="checkbox"><input type="checkbox" name="is_featured" <?php echo ($editing && $editing['is_featured']) ? 'checked' : ''; ?>> Featured</label>
+        <label class="checkbox"><input type="checkbox" name="is_featured" <?php echo ($editing && $editing['is_featured']) ? 'checked' : ''; ?>> Featured — shows in Best Sellers & hero slideshow</label>
 
         <div class="form-actions">
             <button type="submit" class="btn btn-primary"><?php echo $editing ? 'Save Changes' : 'Add Product'; ?></button>
@@ -165,7 +171,15 @@ if (isset($_GET['edit'])) {
                 <td><?php echo e($p['category_name'] ?? '—'); ?></td>
                 <td>₱<?php echo number_format((float)$p['price'], 2); ?></td>
                 <td><span class="chip <?php echo $p['stock'] > 0 ? 'chip-in' : 'chip-out'; ?>"><?php echo (int)$p['stock']; ?> <?php echo $p['stock'] == 1 ? 'item' : 'items'; ?></span></td>
-                <td><span class="chip <?php echo $p['is_featured'] ? 'chip-yes' : 'chip-no'; ?>"><?php echo $p['is_featured'] ? 'Yes' : 'No'; ?></span></td>
+                <td>
+                    <?php if (in_array((int)$p['id'], $heroIds, true)): ?>
+                        <span class="chip chip-yes">★ Slideshow</span>
+                    <?php elseif ($p['is_featured']): ?>
+                        <span class="chip chip-yes">Bestseller</span>
+                    <?php else: ?>
+                        <span class="chip chip-no">No</span>
+                    <?php endif; ?>
+                </td>
                 <td>
                     <div class="cell-actions">
                         <a class="btn btn-ghost btn-sm" href="products.php?edit=<?php echo (int)$p['id']; ?>">Edit</a>
