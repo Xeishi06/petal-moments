@@ -1700,6 +1700,22 @@ body.dark .menu-btn span { background: #f2e7e2; }
 body.dark .btn-dark { background: #171110; color: #fff; border: 1px solid rgba(255, 255, 255, 0.16); }
 body.dark .btn-dark:hover { background: #2c2321; }
 body.dark .event-stat { background: #171110; color: #fff; }
+/* Dark-mode readability: lift dim text to meet contrast */
+body.dark .eyebrow { color: #d89aa5; }
+body.dark .hero-copy > p,
+body.dark .hero-features small,
+body.dark .event-copy > p,
+body.dark .product-desc { color: #d3c0b9; }
+body.dark .floating-card strong { color: #fff; }
+body.dark .floating-card small { color: #e8c9cf; }
+body.dark .floating-card .hero-shop { color: #e8a7b2; }
+body.dark .product-details h3,
+body.dark .product-details strong { color: #f5ebe7; }
+body.dark .step h3 { color: #f5ebe7; }
+body.dark .step p { color: #c4aca5; }
+body.dark .service-list p { color: #e5d5d0; }
+body.dark .cat-hopper a,
+body.dark .variant-pill span { color: #d3c0b9; }
 body.dark .settings-side,
 body.dark .settings-panel { background: #2c2321; border-color: rgba(255, 255, 255, 0.1); }
 body.dark .settings-side a { color: #b9a5a0; }
