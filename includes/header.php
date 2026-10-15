@@ -9,6 +9,7 @@ $active    = $active ?? '';
 <html lang="en">
 <head>
     <meta charset="UTF-8" />
+    <meta name="color-scheme" content="light dark" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="description" content="Petal Moments Flowers & Events - Flowers made for life's sweetest moments." />
     <title><?php echo e($pageTitle); ?></title>
