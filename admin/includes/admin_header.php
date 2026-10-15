@@ -8,6 +8,7 @@ $adminTitle = $adminTitle ?? 'Admin | Petal Moments';
 $navLabels = [
     'dashboard'   => 'Dashboard',
     'products'    => 'Products',
+    'addons'      => 'Add-ons',
     'variants'    => 'Variants',
     'categories'  => 'Categories',
     'orders'      => 'Orders',
@@ -61,6 +62,10 @@ try {
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 8 12 3 3 8v8l9 5 9-5V8Z"/><path d="M3 8l9 5 9-5"/><path d="M12 13v8"/></svg>
                 Products
                 <?php if ($navCounts['lowstock'] > 0): ?><span class="nav-badge warn" title="<?php echo (int)$navCounts['lowstock']; ?> products low on stock"><?php echo (int)$navCounts['lowstock']; ?></span><?php endif; ?>
+            </a>
+            <a href="addons.php" class="<?php echo ($active ?? '') === 'addons' ? 'active' : ''; ?>">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="8" width="18" height="4" rx="1"/><path d="M12 8v13M5 12v9h14v-9M12 8s-4 0-5-2-1-4 1-4 3 2 4 4ZM12 8s4 0 5-2 1-4-1-4-3 2-4 4Z"/></svg>
+                Add-ons
             </a>
             <a href="categories.php" class="<?php echo ($active ?? '') === 'categories' ? 'active' : ''; ?>">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20.6 13.4 12 22l-9-9V3h10l7.6 7.6a2 2 0 0 1 0 2.8Z"/><circle cx="7.5" cy="7.5" r=".5"/></svg>
