@@ -18,10 +18,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['form'] ?? '') === 'addon')
     $sale  = trim($_POST['sale_price'] ?? '');
     $sale  = $sale === '' ? null : (float)$sale;
     $stock = (int)($_POST['stock'] ?? 0);
-    $cat   = (int)($_POST['category_id'] ?? 0);
     $image = trim($_POST['image'] ?? '');
     $desc  = trim($_POST['description'] ?? '');
     $slug  = strtolower(preg_replace('/[^a-z0-9]+/i', '-', $name));
+    // Occasions this add-on shows on (empty = every occasion)
+    $validCatIds = array_map('intval', array_column($pdo->query("SELECT id FROM categories")->fetchAll(), 'id'));
+    $showOn = implode(',', array_values(array_intersect(array_map('intval', (array)($_POST['show_on'] ?? [])), $validCatIds)));
+    $showOn = $showOn !== '' ? $showOn : null;
 
     $uploadError = null;
     if (!empty($_FILES['image_file']['name']) && ($_FILES['image_file']['error'] ?? UPLOAD_ERR_NO_FILE) === UPLOAD_ERR_OK) {
@@ -54,12 +57,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['form'] ?? '') === 'addon')
         flash('error', $uploadError);
     } else {
         if ($id > 0) {
-            $pdo->prepare("UPDATE products SET category_id=:c, name=:n, slug=:s, description=:d, price=:p, sale_price=:sp, image=:i, stock=:st WHERE id=:id AND is_addon = 1")
-                ->execute([':c' => $cat ?: null, ':n' => $name, ':s' => $slug, ':d' => $desc, ':p' => $price, ':sp' => $sale, ':i' => $image, ':st' => $stock, ':id' => $id]);
+            $pdo->prepare("UPDATE products SET name=:n, slug=:s, description=:d, price=:p, sale_price=:sp, image=:i, stock=:st, show_on=:so WHERE id=:id AND is_addon = 1")
+                ->execute([':n' => $name, ':s' => $slug, ':d' => $desc, ':p' => $price, ':sp' => $sale, ':i' => $image, ':st' => $stock, ':so' => $showOn, ':id' => $id]);
             flash('success', 'Add-on updated. It shows in “Complete your gift” right away.');
         } else {
-            $pdo->prepare("INSERT INTO products (category_id, name, slug, description, price, sale_price, image, stock, is_featured, is_addon) VALUES (:c,:n,:s,:d,:p,:sp,:i,:st,0,1)")
-                ->execute([':c' => $cat ?: null, ':n' => $name, ':s' => $slug, ':d' => $desc, ':p' => $price, ':sp' => $sale, ':i' => $image, ':st' => $stock]);
+            $pdo->prepare("INSERT INTO products (category_id, name, slug, description, price, sale_price, image, stock, is_featured, is_addon, show_on) VALUES (NULL,:n,:s,:d,:p,:sp,:i,:st,0,1,:so)")
+                ->execute([':n' => $name, ':s' => $slug, ':d' => $desc, ':p' => $price, ':sp' => $sale, ':i' => $image, ':st' => $stock, ':so' => $showOn]);
             flash('success', 'Add-on added. It shows in “Complete your gift” right away.');
         }
         redirect('addons.php');
@@ -109,16 +112,13 @@ if (isset($_GET['edit'])) {
         <input type="number" name="sale_price" step="0.01" min="0" value="<?php echo e($editing['sale_price'] ?? ''); ?>" placeholder="Leave blank for no sale">
         <label>Stock</label>
         <input type="number" name="stock" min="0" value="<?php echo e($editing['stock'] ?? '50'); ?>">
-        <label>Shows on <small class="opt">(which occasions)</small></label>
-        <select name="category_id">
-            <option value="0">All occasions</option>
+        <label>Shows on <small>(tick occasions, or none = every occasion)</small></label>
+        <div class="check-row">
+            <?php $picked = $editing && !empty($editing['show_on']) ? explode(',', $editing['show_on']) : []; ?>
             <?php foreach ($allCats as $c): ?>
-                <option value="<?php echo (int)$c['id']; ?>"
-                    <?php echo ($editing && $editing['category_id'] == $c['id']) ? 'selected' : ''; ?>>
-                    <?php echo e($c['name']); ?> only
-                </option>
+                <label class="checkbox inline"><input type="checkbox" name="show_on[]" value="<?php echo (int)$c['id']; ?>" <?php echo in_array((string)$c['id'], $picked, true) ? 'checked' : ''; ?>> <?php echo e($c['name']); ?></label>
             <?php endforeach; ?>
-        </select>
+        </div>
         <label>Image URL</label>
         <input type="text" name="image" value="<?php echo e($editing['image'] ?? ''); ?>" placeholder="https://... or leave blank">
         <div class="or-divider">OR</div>
@@ -161,7 +161,19 @@ if (isset($_GET['edit'])) {
                         </div>
                     </div>
                 </td>
-                <td><?php echo e($a['category_name'] ?? 'All occasions'); ?></td>
+                <td>
+                    <?php
+                    $showNames = [];
+                    if (!empty($a['show_on'])) {
+                        foreach (explode(',', $a['show_on']) as $sid) {
+                            foreach ($allCats as $cc) {
+                                if ((int)$cc['id'] === (int)$sid) { $showNames[] = $cc['name']; break; }
+                            }
+                        }
+                    }
+                    echo $showNames ? e(implode(', ', $showNames)) : 'All occasions';
+                    ?>
+                </td>
                 <td>
                     <?php if (!empty($a['sale_price']) && (float)$a['sale_price'] > 0 && (float)$a['sale_price'] < (float)$a['price']): ?>
                         <s style="color:#999;">₱<?php echo number_format((float)$a['price'], 2); ?></s><br>
