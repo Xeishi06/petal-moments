@@ -30,12 +30,14 @@ $defaultAddr = $addrOptions[0] ?? '';
 // Saved GCash numbers for one-tap refill at checkout
 $savedGcash = [];
 $savedCards = [];
+$defaultPay = null;
 try {
-    $sg = db()->prepare("SELECT label, detail, method FROM saved_payments WHERE user_id = :id ORDER BY created_at DESC");
+    $sg = db()->prepare("SELECT label, detail, method, is_default FROM saved_payments WHERE user_id = :id ORDER BY is_default DESC, created_at DESC");
     $sg->execute([':id' => $_SESSION['user_id']]);
     foreach ($sg->fetchAll() as $row) {
         if ($row['method'] === 'card') { $savedCards[] = $row; }
         else { $savedGcash[] = $row; }
+        if (!empty($row['is_default'])) { $defaultPay = $row; }
     }
 } catch (Exception $e) { /* best-effort */ }
 
@@ -369,8 +371,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     <select name="payment_method" id="paymentMethod">
                         <option value="cash_on_delivery" data-for="delivery">Cash on Delivery</option>
                         <option value="pay_on_pickup" data-for="pickup">Pay on pickup</option>
-                        <option value="card" data-for="both">Debit/Credit Card</option>
-                        <option value="gcash" data-for="both">GCash</option>
+                        <option value="card" data-for="both"<?php echo ($defaultPay && $defaultPay['method'] === 'card') ? ' selected' : ''; ?>>Debit/Credit Card</option>
+                        <option value="gcash" data-for="both"<?php echo ($defaultPay && $defaultPay['method'] === 'gcash') ? ' selected' : ''; ?>>GCash</option>
                     </select>
 
                     <div class="gcash-box" id="gcashBox" hidden>
@@ -379,7 +381,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         <label>GCash reference number *</label>
                         <input type="text" name="payment_ref" id="paymentRef" inputmode="numeric" maxlength="20" placeholder="13-digit number from your receipt">
                         <label>Your GCash number (paying from) *</label>
-                        <input type="text" name="sender_no" id="senderNo" inputmode="numeric" maxlength="20" list="senderList" placeholder="e.g. 09171234567">
+                        <input type="text" name="sender_no" id="senderNo" inputmode="numeric" maxlength="20" list="senderList" placeholder="e.g. 09171234567" value="<?php echo ($defaultPay && $defaultPay['method'] === 'gcash') ? e(preg_replace('/\s+/', '', $defaultPay['detail'])) : ''; ?>">
                         <?php if (!empty($savedGcash)): ?>
                         <datalist id="senderList">
                             <?php foreach ($savedGcash as $sgc): ?><option value="<?php echo e(preg_replace('/\s+/', '', $sgc['detail'])); ?>"><?php echo e($sgc['label']); ?></option><?php endforeach; ?>
@@ -399,7 +401,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         <strong>💳 Pay by card in person</strong>
                         <p>Have your card ready — our rider/cashier brings the terminal.</p>
                         <label>Which card are you bringing? <small class="opt">(optional)</small></label>
-                        <input type="text" name="sender_no_card" id="senderCard" maxlength="100" list="cardList" placeholder="e.g. BDO ••1234">
+                        <input type="text" name="sender_no_card" id="senderCard" maxlength="100" list="cardList" placeholder="e.g. BDO ••1234" value="<?php echo ($defaultPay && $defaultPay['method'] === 'card') ? e($defaultPay['detail']) : ''; ?>">
                         <?php if (!empty($savedCards)): ?>
                         <datalist id="cardList">
                             <?php foreach ($savedCards as $sc): ?><option value="<?php echo e($sc['detail']); ?>"><?php echo e($sc['label']); ?></option><?php endforeach; ?>

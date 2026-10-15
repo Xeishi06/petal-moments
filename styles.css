@@ -1614,6 +1614,8 @@ a.floating-card:hover {
   padding: 10px 0; border-bottom: 1px solid rgba(48, 38, 37, 0.08);
 }
 .pay-row small { display: block; color: var(--muted); }
+.pay-actions { display: flex; gap: 12px; align-items: center; white-space: nowrap; }
+.pay-edit { margin-top: 16px; padding-top: 16px; border-top: 1px dashed var(--border); }
 .pay-add select {
   width: 100%; padding: 11px 13px; border: 1px solid var(--border);
   border-radius: 10px; font-size: 0.9rem; background: #fff;

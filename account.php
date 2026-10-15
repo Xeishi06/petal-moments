@@ -61,14 +61,81 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['form'] ?? '') === 'payment
     $label  = mb_substr(trim($_POST['plabel'] ?? ''), 0, 60);
     $method = ($_POST['pmethod'] ?? 'gcash') === 'card' ? 'card' : 'gcash';
     $detail = mb_substr(trim($_POST['pdetail'] ?? ''), 0, 100);
+    $normDetail = $method === 'gcash' ? preg_replace('/\s+/', '', $detail) : $detail;
     if ($label === '' || $detail === '') {
         flash('error', 'Give your payment method a name and its number.');
     } elseif ($method === 'gcash' && !preg_match('/^[0-9]{10,13}$/', preg_replace('/\s+/', '', $detail))) {
         flash('error', 'GCash number should be 10–13 digits.');
     } else {
-        db()->prepare("INSERT INTO saved_payments (user_id, label, method, detail) VALUES (:u, :l, :m, :d)")
-            ->execute([':u' => $_SESSION['user_id'], ':l' => $label, ':m' => $method, ':d' => $detail]);
-        flash('success', 'Payment method saved.');
+        $dup = db()->prepare("SELECT id FROM saved_payments WHERE user_id = :u AND method = :m AND detail = :d");
+        $dup->execute([':u' => $_SESSION['user_id'], ':m' => $method, ':d' => $method === 'gcash' ? $normDetail : $detail]);
+        if ($dup->fetch()) {
+            flash('error', 'You already saved that ' . ($method === 'gcash' ? 'GCash number' : 'card') . '.');
+        } else {
+            $first = db()->prepare("SELECT COUNT(*) FROM saved_payments WHERE user_id = :u");
+            $first->execute([':u' => $_SESSION['user_id']]);
+            $isFirst = ((int)$first->fetchColumn() === 0);
+            db()->prepare("INSERT INTO saved_payments (user_id, label, method, detail, is_default) VALUES (:u, :l, :m, :d, :df)")
+                ->execute([':u' => $_SESSION['user_id'], ':l' => $label, ':m' => $method, ':d' => $method === 'gcash' ? $normDetail : $detail, ':df' => $isFirst ? 1 : 0]);
+            flash('success', $isFirst ? 'Payment method saved — set as your default. 🎉' : 'Payment method saved.');
+        }
+    }
+    redirect('account.php?tab=payments');
+}
+
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['form'] ?? '') === 'payment_default') {
+    if (!verify_csrf($_POST['csrf'] ?? '')) {
+        flash('error', 'Session expired. Please try again.');
+    } else {
+        $pid = (int)($_POST['pay_id'] ?? 0);
+        $own = db()->prepare("SELECT id FROM saved_payments WHERE id = :id AND user_id = :u");
+        $own->execute([':id' => $pid, ':u' => $_SESSION['user_id']]);
+        if (!$own->fetch()) {
+            flash('error', 'Payment method not found.');
+        } else {
+            db()->prepare("UPDATE saved_payments SET is_default = 0 WHERE user_id = :u")->execute([':u' => $_SESSION['user_id']]);
+            db()->prepare("UPDATE saved_payments SET is_default = 1 WHERE id = :id")->execute([':id' => $pid]);
+            flash('success', 'Default payment method updated. ⭐');
+        }
+    }
+    redirect('account.php?tab=payments');
+}
+
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['form'] ?? '') === 'payment_edit') {
+    if (!verify_csrf($_POST['csrf'] ?? '')) {
+        flash('error', 'Session expired. Please try again.');
+    } else {
+        $pid   = (int)($_POST['pay_id'] ?? 0);
+        $label = mb_substr(trim($_POST['plabel'] ?? ''), 0, 60);
+        $detail = mb_substr(trim($_POST['pdetail'] ?? ''), 0, 100);
+        $own = db()->prepare("SELECT * FROM saved_payments WHERE id = :id AND user_id = :u");
+        $own->execute([':id' => $pid, ':u' => $_SESSION['user_id']]);
+        $existing = $own->fetch();
+        if (!$existing) {
+            flash('error', 'Payment method not found.');
+        } elseif ($label === '' || $detail === '') {
+            flash('error', 'Nickname and number cannot be empty.');
+        } elseif ($existing['method'] === 'gcash' && !preg_match('/^[0-9]{10,13}$/', preg_replace('/\s+/', '', $detail))) {
+            flash('error', 'GCash number should be 10–13 digits.');
+        } else {
+            $dup = db()->prepare("SELECT id FROM saved_payments WHERE user_id = :u AND method = :m AND detail = :d AND id != :id");
+            $dup->execute([
+                ':u' => $_SESSION['user_id'], ':m' => $existing['method'],
+                ':d' => $existing['method'] === 'gcash' ? preg_replace('/\s+/', '', $detail) : $detail,
+                ':id' => $pid,
+            ]);
+            if ($dup->fetch()) {
+                flash('error', 'Another saved method already uses those details.');
+            } else {
+                db()->prepare("UPDATE saved_payments SET label = :l, detail = :d WHERE id = :id")
+                    ->execute([
+                        ':l' => $label,
+                        ':d' => $existing['method'] === 'gcash' ? preg_replace('/\s+/', '', $detail) : $detail,
+                        ':id' => $pid,
+                    ]);
+                flash('success', 'Payment method updated.');
+            }
+        }
     }
     redirect('account.php?tab=payments');
 }
@@ -227,15 +294,52 @@ if (!in_array($tab, $validTabs, true)) { $tab = 'account'; }
                 <h3>Payment methods</h3>
                 <p class="acct-note">GCash numbers appear as one-tap picks at checkout. Cards are reminders only — pay by card in person.</p>
                 <?php if (!empty($myPayments)): ?>
+                    <?php $editPm = null;
+                    if (isset($_GET['editpay'])) {
+                        foreach ($myPayments as $cand) {
+                            if ((int)$cand['id'] === (int)$_GET['editpay']) { $editPm = $cand; break; }
+                        }
+                    } ?>
                     <?php foreach ($myPayments as $pm): ?>
                     <div class="pay-row">
                         <div>
-                            <strong><?php echo $pm['method'] === 'gcash' ? 'GCash' : '💳 Card'; ?> — <?php echo e($pm['label']); ?></strong>
+                            <strong><?php if (!empty($pm['is_default'])): ?><span title="Default payment">⭐ </span><?php endif; ?><?php echo $pm['method'] === 'gcash' ? 'GCash' : '💳 Card'; ?> — <?php echo e($pm['label']); ?></strong>
                             <small><?php echo e($pm['detail']); ?></small>
                         </div>
-                        <a class="remove-link" href="account.php?tab=payments&delpay=<?php echo (int)$pm['id']; ?>&csrf=<?php echo e(csrf_token()); ?>" onclick="return confirm('Remove this saved payment?');">Remove</a>
+                        <div class="pay-actions">
+                            <?php if (empty($pm['is_default'])): ?>
+                            <form method="post" action="account.php?tab=payments" style="display:inline;">
+                                <input type="hidden" name="form" value="payment_default">
+                                <input type="hidden" name="csrf" value="<?php echo e(csrf_token()); ?>">
+                                <input type="hidden" name="pay_id" value="<?php echo (int)$pm['id']; ?>">
+                                <button type="submit" class="remove-link" style="border:0;background:none;cursor:pointer;">Make default</button>
+                            </form>
+                            <?php endif; ?>
+                            <a class="remove-link" href="account.php?tab=payments&editpay=<?php echo (int)$pm['id']; ?>">Edit</a>
+                            <a class="remove-link" href="account.php?tab=payments&delpay=<?php echo (int)$pm['id']; ?>&csrf=<?php echo e(csrf_token()); ?>" onclick="return confirm('Remove this saved payment?');">Remove</a>
+                        </div>
                     </div>
                     <?php endforeach; ?>
+                    <?php if ($editPm): ?>
+                    <form method="post" action="account.php?tab=payments" class="pay-add pay-edit">
+                        <input type="hidden" name="form" value="payment_edit">
+                        <input type="hidden" name="csrf" value="<?php echo e(csrf_token()); ?>">
+                        <input type="hidden" name="pay_id" value="<?php echo (int)$editPm['id']; ?>">
+                        <h3 style="margin-top:6px;">Edit — <?php echo e($editPm['label']); ?></h3>
+                        <div class="form-row">
+                            <div>
+                                <label>Nickname *</label>
+                                <input type="text" name="plabel" maxlength="60" value="<?php echo e($editPm['label']); ?>" required>
+                            </div>
+                            <div>
+                                <label>Number / details *</label>
+                                <input type="text" name="pdetail" maxlength="100" value="<?php echo e($editPm['detail']); ?>" required>
+                            </div>
+                        </div>
+                        <button type="submit" class="btn btn-dark btn-small" style="margin-top:10px;">Save Changes</button>
+                        <a class="btn btn-light btn-small" style="margin-top:10px;" href="account.php?tab=payments">Cancel</a>
+                    </form>
+                    <?php endif; ?>
                 <?php else: ?>
                     <p class="empty-state">No saved payments yet.</p>
                 <?php endif; ?>

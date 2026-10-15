@@ -237,6 +237,7 @@ CREATE TABLE saved_payments (
   label       VARCHAR(60)    NOT NULL,
   method      ENUM('gcash','card') NOT NULL DEFAULT 'gcash',
   detail      VARCHAR(100)   NOT NULL,
+  is_default  TINYINT(1)     NOT NULL DEFAULT 0,
   created_at  TIMESTAMP      NOT NULL DEFAULT CURRENT_TIMESTAMP,
   CONSTRAINT fk_spay_user
     FOREIGN KEY (user_id) REFERENCES users(id)
