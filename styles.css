@@ -26,6 +26,12 @@ html {
   color-scheme: light dark;
 }
 
+input,
+select,
+textarea {
+  color: var(--ink);
+}
+
 body {
   font-family: "DM Sans", sans-serif;
   color: var(--ink);
