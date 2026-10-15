@@ -29,14 +29,12 @@ $defaultAddr = $addrOptions[0] ?? '';
 
 // Saved GCash numbers for one-tap refill at checkout
 $savedGcash = [];
-$savedCards = [];
 $defaultPay = null;
 try {
     $sg = db()->prepare("SELECT label, detail, method, is_default FROM saved_payments WHERE user_id = :id ORDER BY is_default DESC, created_at DESC");
     $sg->execute([':id' => $_SESSION['user_id']]);
     foreach ($sg->fetchAll() as $row) {
-        if ($row['method'] === 'card') { $savedCards[] = $row; }
-        else { $savedGcash[] = $row; }
+        if ($row['method'] === 'gcash') { $savedGcash[] = $row; }
         if (!empty($row['is_default'])) { $defaultPay = $row; }
     }
 } catch (Exception $e) { /* best-effort */ }
@@ -124,19 +122,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $deliveryNotes   = trim($_POST['delivery_notes'] ?? '');
     $paymentMethod   = $_POST['payment_method'] ?? 'cash_on_delivery';
     $paymentRef      = trim($_POST['payment_ref'] ?? '');
-    $cardAuth        = trim($_POST['card_auth'] ?? '');
     $senderNo        = mb_substr(trim($_POST['sender_no'] ?? ''), 0, 100);
-    if ($senderNo === '') { $senderNo = mb_substr(trim($_POST['sender_no_card'] ?? ''), 0, 100); }
 
     $payOptions = $fulfillment === 'pickup'
-        ? ['pay_on_pickup' => 'Pay on pickup', 'card' => 'Debit/Credit Card', 'gcash' => 'GCash']
-        : ['cash_on_delivery' => 'Cash on Delivery', 'card' => 'Debit/Credit Card', 'gcash' => 'GCash'];
+        ? ['pay_on_pickup' => 'Pay on pickup', 'gcash' => 'GCash']
+        : ['cash_on_delivery' => 'Cash on Delivery', 'gcash' => 'GCash'];
 
     $errors = [];
     if (!isset($payOptions[$paymentMethod])) {
         $errors[] = $fulfillment === 'pickup'
-            ? 'Please choose Pay on pickup, Card, or GCash.'
-            : 'Please choose Cash on Delivery, Card, or GCash.';
+            ? 'Please choose Pay on pickup or GCash.'
+            : 'Please choose Cash on Delivery or GCash.';
     }
     if ($paymentMethod === 'gcash') {
         if ($paymentRef === '') {
@@ -174,17 +170,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             }
         }
         if ($receiptErr !== null) { $errors[] = $receiptErr; }
-    }
-    if ($paymentMethod === 'card' && $cardAuth !== '') {
-        if (!preg_match('/^[A-Za-z0-9]{4,20}$/', $cardAuth)) {
-            $errors[] = 'Approval code should be 4–20 letters or numbers.';
-        } else {
-            $dupAuth = db()->prepare("SELECT id FROM orders WHERE payment_method = 'card' AND payment_ref = :ref AND status != 'cancelled' LIMIT 1");
-            $dupAuth->execute([':ref' => $cardAuth]);
-            if ($dupAuth->fetch()) {
-                $errors[] = 'This approval code was already used on another order. Please check the receipt.';
-            }
-        }
     }
     if ($fulfillment === 'delivery') {
         if ($deliveryAddress === '') {
@@ -270,8 +255,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 ':date'    => $deliveryDate !== '' ? $deliveryDate : null,
                 ':notes'   => $deliveryNotes,
                 ':method'  => $paymentMethod,
-                ':ref'     => $paymentMethod === 'gcash' ? $paymentRef : ($paymentMethod === 'card' && $cardAuth !== '' ? $cardAuth : null),
-                ':sender'  => in_array($paymentMethod, ['gcash', 'card'], true) && $senderNo !== '' ? $senderNo : null,
+                ':ref'     => $paymentMethod === 'gcash' ? $paymentRef : null,
+                ':sender'  => $paymentMethod === 'gcash' && $senderNo !== '' ? $senderNo : null,
                 ':fulfill' => $fulfillment,
             ]);
             $orderId = (int)$pdo->lastInsertId();
@@ -383,7 +368,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     <select name="payment_method" id="paymentMethod">
                         <option value="cash_on_delivery" data-for="delivery">Cash on Delivery</option>
                         <option value="pay_on_pickup" data-for="pickup">Pay on pickup</option>
-                        <option value="card" data-for="both"<?php echo ($defaultPay && $defaultPay['method'] === 'card') ? ' selected' : ''; ?>>Debit/Credit Card</option>
                         <option value="gcash" data-for="both"<?php echo ($defaultPay && $defaultPay['method'] === 'gcash') ? ' selected' : ''; ?>>GCash</option>
                     </select>
 
@@ -409,20 +393,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         <input type="file" name="receipt" accept="image/jpeg,image/png,image/webp">
                     </div>
 
-                    <div class="gcash-box" id="cardBox" hidden>
-                        <strong>💳 Pay by card in person</strong>
-                        <p>Have your card ready — our rider/cashier brings the terminal.</p>
-                        <label>Which card are you bringing? <small class="opt">(optional)</small></label>
-                        <input type="text" name="sender_no_card" id="senderCard" maxlength="100" list="cardList" placeholder="e.g. BDO ••1234" value="<?php echo ($defaultPay && $defaultPay['method'] === 'card') ? e($defaultPay['detail']) : ''; ?>">
-                        <label>Terminal approval code <small class="opt">(optional — from the receipt, helps us verify faster)</small></label>
-                        <input type="text" name="card_auth" id="cardAuth" maxlength="20" placeholder="e.g. 847392">
-                        <?php if (!empty($savedCards)): ?>
-                        <datalist id="cardList">
-                            <?php foreach ($savedCards as $sc): ?><option value="<?php echo e($sc['detail']); ?>"><?php echo e($sc['label']); ?></option><?php endforeach; ?>
-                        </datalist>
-                        <?php endif; ?>
-                    </div>
-
                     <button type="submit" class="btn btn-primary" id="placeOrderBtn">Place Order</button>
                 </form>
                 <script>
@@ -435,7 +405,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     var errBox = document.getElementById('checkoutErrors');
                     var paySel = document.getElementById('paymentMethod');
                     var gcashBox = document.getElementById('gcashBox');
-                    var cardBox = document.getElementById('cardBox');
                     var refInput = document.getElementById('paymentRef');
                     var senderInput = document.getElementById('senderNo');
                     function isPickup() {
@@ -459,8 +428,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         gcashBox.hidden = !isGcash;
                         refInput.required = isGcash;
                         if (senderInput) { senderInput.required = isGcash; }
-                        var isCard = paySel.value === 'card';
-                        if (cardBox) { cardBox.hidden = !isCard; }
                         var sp = document.getElementById('sumPay');
                         if (sp && paySel.selectedOptions.length) { sp.textContent = paySel.selectedOptions[0].textContent; }
                     }
@@ -515,11 +482,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                             var snd = senderInput ? senderInput.value.replace(/\s+/g, '') : '';
                             if (snd === '') { msgs.push('Please enter the GCash number you paid from.'); }
                             else if (!/^[0-9]{10,13}$/.test(snd)) { msgs.push('Your GCash number should be 10–13 digits.'); }
-                        }
-                        if (pay === 'card') {
-                            var authEl = document.getElementById('cardAuth');
-                            var auth = authEl ? authEl.value.trim() : '';
-                            if (auth !== '' && !/^[A-Za-z0-9]{4,20}$/.test(auth)) { msgs.push('Approval code should be 4–20 letters or numbers.'); }
                         }
                         if (msgs.length) {
                             ev.preventDefault();

@@ -76,7 +76,7 @@ CREATE TABLE orders (
   delivery_address VARCHAR(255)  NULL,
   delivery_date   DATE           NULL,
   delivery_notes  TEXT           NULL,
-  payment_method  ENUM('cash_on_delivery','gcash','pay_on_pickup','card') NOT NULL DEFAULT 'cash_on_delivery',
+  payment_method  ENUM('cash_on_delivery','gcash','pay_on_pickup') NOT NULL DEFAULT 'cash_on_delivery',
   payment_ref     VARCHAR(100)   NULL,
   sender_no       VARCHAR(100)   NULL,
   receipt         VARCHAR(255)   NULL,
