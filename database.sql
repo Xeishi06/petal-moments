@@ -190,6 +190,27 @@ CREATE TABLE variants (
 ) ENGINE=InnoDB;
 
 -- ------------------------------------------------------------
+-- REVIEWS (buyer ratings, one per user per product)
+-- ------------------------------------------------------------
+DROP TABLE IF EXISTS reviews;
+CREATE TABLE reviews (
+  id          INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  product_id  INT UNSIGNED   NOT NULL,
+  user_id     INT UNSIGNED   NOT NULL,
+  rating      TINYINT UNSIGNED NOT NULL,
+  comment     TEXT           NULL,
+  status      ENUM('approved','hidden') NOT NULL DEFAULT 'approved',
+  created_at  TIMESTAMP      NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  UNIQUE KEY uq_review_user_product (user_id, product_id),
+  CONSTRAINT fk_review_product
+    FOREIGN KEY (product_id) REFERENCES products(id)
+    ON DELETE CASCADE ON UPDATE CASCADE,
+  CONSTRAINT fk_review_user
+    FOREIGN KEY (user_id) REFERENCES users(id)
+    ON DELETE CASCADE ON UPDATE CASCADE
+) ENGINE=InnoDB;
+
+-- ------------------------------------------------------------
 -- CONTACT MESSAGES (contact form inbox)
 -- ------------------------------------------------------------
 DROP TABLE IF EXISTS contact_messages;

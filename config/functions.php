@@ -144,3 +144,35 @@ function cart_save_lines($store, $lines)
 {
     $_SESSION[$store] = $lines;
 }
+
+// Units sold per product (paid pipeline only — cancelled excluded)
+function product_sold_counts($ids)
+{
+    $ids = array_map('intval', (array)$ids);
+    $ids = array_values(array_unique(array_filter($ids)));
+    if (empty($ids)) { return []; }
+    $in = implode(',', $ids);
+    $out = array_fill_keys($ids, 0);
+    try {
+        foreach (db()->query("
+            SELECT oi.product_id, COALESCE(SUM(oi.quantity), 0) AS sold
+            FROM order_items oi
+            JOIN orders o ON o.id = oi.order_id AND o.status != 'cancelled'
+            WHERE oi.product_id IN ($in)
+            GROUP BY oi.product_id
+        ")->fetchAll() as $r) {
+            $out[(int)$r['product_id']] = (int)$r['sold'];
+        }
+    } catch (Exception $e) { /* stats are best-effort */ }
+    return $out;
+}
+
+function stars_html($avg)
+{
+    $full = (int)floor($avg);
+    $html = '';
+    for ($i = 1; $i <= 5; $i++) {
+        $html .= $i <= $full ? '★' : '☆';
+    }
+    return '<span class="stars" title="' . number_format((float)$avg, 1) . ' out of 5">' . $html . '</span>';
+}

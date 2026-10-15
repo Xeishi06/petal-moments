@@ -49,6 +49,48 @@ $items = db()->prepare("
 $items->execute([':id' => $orderId]);
 $items = $items->fetchAll();
 
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['form'] ?? '') === 'reorder') {
+    if (!verify_csrf($_POST['csrf'] ?? '')) {
+        flash('error', 'Session expired. Please try again.');
+        redirect('order.php?id=' . $orderId);
+    }
+    $variants = cart_variants();
+    $byName = [];
+    foreach ($variants as $vid => $v) { $byName[$v['name']] = $vid; }
+    $prodStmt = db()->prepare("SELECT id, stock FROM products WHERE id = :id AND is_active = 1");
+    $lines = cart_lines('cart');
+    $added = 0;
+    $skipped = 0;
+    foreach ($items as $it) {
+        $prodStmt->execute([':id' => $it['product_id']]);
+        if (!$prodStmt->fetch()) { $skipped++; continue; }
+        $vid = isset($byName[$it['variant_name'] ?? '']) ? $byName[$it['variant_name']] : 0;
+        $ded = mb_substr(trim((string)($it['dedication'] ?? '')), 0, 255);
+        $qty = max(1, min(10, (int)$it['quantity']));
+        $merged = false;
+        foreach ($lines as $rk => $ln) {
+            if ($ln['pid'] === (int)$it['product_id'] && $ln['vid'] === $vid && $ln['ded'] === $ded) {
+                $lines[$rk]['qty'] = min(10, $ln['qty'] + $qty);
+                $merged = true;
+                break;
+            }
+        }
+        if (!$merged) {
+            $lines['r' . substr(md5($it['product_id'] . $vid . $ded . microtime(true)), 0, 10)] = [
+                'pid' => (int)$it['product_id'], 'qty' => $qty, 'vid' => $vid, 'ded' => $ded,
+            ];
+        }
+        $added++;
+    }
+    cart_save_lines('cart', $lines);
+    if ($added > 0) {
+        flash('success', 'Added ' . $added . ' item(s) back to your cart.' . ($skipped > 0 ? ' ' . $skipped . ' unavailable item(s) skipped.' : ''));
+        redirect('cart.php');
+    }
+    flash('error', 'Nothing to reorder — those items are no longer available.');
+    redirect('order.php?id=' . $orderId);
+}
+
 $history = db()->prepare("SELECT * FROM order_status_history WHERE order_id = :id ORDER BY changed_at ASC");
 $history->execute([':id' => $orderId]);
 $history = $history->fetchAll();
@@ -94,6 +136,11 @@ $history = $history->fetchAll();
                     <button type="submit" class="btn btn-light">Cancel Order</button>
                 </form>
                 <?php endif; ?>
+                <form method="post" action="order.php?id=<?php echo (int)$order['id']; ?>" style="margin-top:10px;">
+                    <input type="hidden" name="form" value="reorder">
+                    <input type="hidden" name="csrf" value="<?php echo e(csrf_token()); ?>">
+                    <button type="submit" class="btn btn-dark">↻ Buy These Again</button>
+                </form>
             </div>
 
             <div class="checkout-summary">

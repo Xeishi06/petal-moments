@@ -24,6 +24,66 @@ if (is_logged_in()) {
     $isSaved = (bool)$ws->fetch();
 }
 
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['form'] ?? '') === 'review') {
+    if (!is_logged_in()) {
+        flash('error', 'Please log in to write a review.');
+        redirect('login.php');
+    }
+    if (!verify_csrf($_POST['csrf'] ?? '')) {
+        flash('error', 'Session expired. Please try again.');
+        redirect('product.php?id=' . $product['id']);
+    }
+    $rating = (int)($_POST['rating'] ?? 0);
+    $comment = mb_substr(trim($_POST['comment'] ?? ''), 0, 1000);
+    $bought = db()->prepare("
+        SELECT 1 FROM order_items oi
+        JOIN orders o ON o.id = oi.order_id AND o.status != 'cancelled'
+        WHERE o.user_id = :u AND oi.product_id = :p LIMIT 1
+    ");
+    $bought->execute([':u' => $_SESSION['user_id'], ':p' => $product['id']]);
+    if ($rating < 1 || $rating > 5) {
+        flash('error', 'Please choose a star rating from 1 to 5.');
+    } elseif (!$bought->fetch()) {
+        flash('error', 'Only customers who bought this flower can review it.');
+    } else {
+        db()->prepare("
+            INSERT INTO reviews (product_id, user_id, rating, comment)
+            VALUES (:p, :u, :r, :c)
+            ON DUPLICATE KEY UPDATE rating = :r, comment = :c, status = 'approved', created_at = CURRENT_TIMESTAMP
+        ")->execute([':p' => $product['id'], ':u' => $_SESSION['user_id'], ':r' => $rating, ':c' => $comment !== '' ? $comment : null]);
+        flash('success', 'Thanks for your review!');
+    }
+    redirect('product.php?id=' . $product['id']);
+}
+
+$revStats = db()->prepare("SELECT COUNT(*) AS n, COALESCE(AVG(rating), 0) AS avg FROM reviews WHERE product_id = :p AND status = 'approved'");
+$revStats->execute([':p' => $product['id']]);
+$revStats = $revStats->fetch();
+$revList = db()->prepare("
+    SELECT r.rating, r.comment, r.created_at, u.first_name
+    FROM reviews r JOIN users u ON u.id = r.user_id
+    WHERE r.product_id = :p AND r.status = 'approved'
+    ORDER BY r.created_at DESC LIMIT 10
+");
+$revList->execute([':p' => $product['id']]);
+$revList = $revList->fetchAll();
+$canReview = false;
+$myReview = null;
+if (is_logged_in()) {
+    $bought2 = db()->prepare("
+        SELECT 1 FROM order_items oi
+        JOIN orders o ON o.id = oi.order_id AND o.status != 'cancelled'
+        WHERE o.user_id = :u AND oi.product_id = :p LIMIT 1
+    ");
+    $bought2->execute([':u' => $_SESSION['user_id'], ':p' => $product['id']]);
+    $canReview = (bool)$bought2->fetch();
+    if ($canReview) {
+        $mr = db()->prepare("SELECT rating, comment FROM reviews WHERE product_id = :p AND user_id = :u");
+        $mr->execute([':p' => $product['id'], ':u' => $_SESSION['user_id']]);
+        $myReview = $mr->fetch();
+    }
+}
+
 $allVariants = cart_variants();
 $showVariants = ($product['category_slug'] ?? '') !== 'gifts' && count($allVariants) > 1;
 $defaultVid = cart_default_variant();
@@ -52,6 +112,7 @@ $relStmt->bindValue(':id', $product['id'], PDO::PARAM_INT);
 if ($product['category_id']) { $relStmt->bindValue(':cid', $product['category_id'], PDO::PARAM_INT); }
 $relStmt->execute();
 $related = $relStmt->fetchAll();
+$relSold = product_sold_counts(array_column($related, 'id'));
 
 // Saved set for the heart buttons below
 $relSaved = [];
@@ -70,6 +131,8 @@ $galStmt = db()->prepare("SELECT id, image FROM product_images WHERE product_id 
 $galStmt->execute([':id' => $product['id']]);
 $gallery = array_column($galStmt->fetchAll(), 'image');
 $mainPhoto = $product['image'] ?: 'https://images.unsplash.com/photo-1490750967868-88aa4486c946?auto=format&fit=crop&w=900&q=80';
+$detailSold = product_sold_counts([$product['id']]);
+$detailSold = $detailSold[(int)$product['id']] ?? 0;
 ?>
 <?php $pageTitle = e($product['name'] ?? 'Arrangement') . ' | Petal Moments'; include __DIR__ . '/includes/header.php'; ?>
 
@@ -134,6 +197,8 @@ $mainPhoto = $product['image'] ?: 'https://images.unsplash.com/photo-14907509678
                     <?php else: ?>
                         <span class="out">Out of stock — check back soon</span>
                     <?php endif; ?>
+                    <?php if ($detailSold > 0): ?><span class="sold-inline"> • 🔥 <?php echo $detailSold; ?> sold</span><?php endif; ?>
+                    <?php if ((int)$revStats['n'] > 0): ?><span class="sold-inline"> • <?php echo stars_html($revStats['avg']); ?> <?php echo number_format((float)$revStats['avg'], 1); ?> (<?php echo (int)$revStats['n']; ?>)</span><?php endif; ?>
                 </p>
 
                 <?php if (is_logged_in()): ?>
@@ -250,7 +315,7 @@ $mainPhoto = $product['image'] ?: 'https://images.unsplash.com/photo-14907509678
                     <div class="product-details">
                         <div>
                             <h3><?php echo e($rp['name']); ?></h3>
-                            <p><?php echo e($rp['category_name'] ?? 'For any occasion'); ?></p>
+                            <p><?php echo e($rp['category_name'] ?? 'For any occasion'); ?><?php echo ($relSold[(int)$rp['id']] ?? 0) > 0 ? ' • 🔥 ' . (int)$relSold[(int)$rp['id']] . ' sold' : ''; ?></p>
                         </div>
                         <strong>₱<?php echo number_format((float)$rp['price'], 2); ?></strong>
                     </div>
@@ -259,6 +324,62 @@ $mainPhoto = $product['image'] ?: 'https://images.unsplash.com/photo-14907509678
             </div>
         </div>
         <?php endif; ?>
+
+        <div class="reviews-block">
+            <div class="section-heading">
+                <span class="eyebrow">CUSTOMER REVIEWS</span>
+                <h2>What buyers <em>say</em></h2>
+            </div>
+            <?php if ((int)$revStats['n'] > 0): ?>
+                <p class="review-summary"><?php echo stars_html($revStats['avg']); ?> <strong><?php echo number_format((float)$revStats['avg'], 1); ?> / 5</strong> from <?php echo (int)$revStats['n']; ?> verified <?php echo (int)$revStats['n'] === 1 ? 'buyer' : 'buyers'; ?></p>
+                <div class="review-list">
+                    <?php foreach ($revList as $rv): ?>
+                    <div class="review-item">
+                        <div class="review-head"><?php echo stars_html($rv['rating']); ?> <strong><?php echo e($rv['first_name']); ?></strong> <small>• verified buyer • <?php echo date('M j, Y', strtotime($rv['created_at'])); ?></small></div>
+                        <?php if (!empty($rv['comment'])): ?><p><?php echo nl2br(e($rv['comment'])); ?></p><?php endif; ?>
+                    </div>
+                    <?php endforeach; ?>
+                </div>
+            <?php else: ?>
+                <p class="empty-state">No reviews yet — be the first to review this flower after your order arrives.</p>
+            <?php endif; ?>
+
+            <?php if ($canReview): ?>
+            <form method="post" action="product.php?id=<?php echo (int)$product['id']; ?>" class="review-form">
+                <input type="hidden" name="form" value="review">
+                <input type="hidden" name="csrf" value="<?php echo e(csrf_token()); ?>">
+                <h3><?php echo $myReview ? 'Update your review' : 'Write a review'; ?></h3>
+                <label>Your rating *</label>
+                <div class="star-pick" role="radiogroup" aria-label="Star rating" id="starPick">
+                    <?php for ($s = 1; $s <= 5; $s++): ?>
+                    <label><input type="radio" name="rating" value="<?php echo $s; ?>"<?php echo ($myReview && (int)$myReview['rating'] === $s) ? ' checked' : ''; ?> required><span>★</span></label>
+                    <?php endfor; ?>
+                </div>
+                <script>
+                (function () {
+                    var wrap = document.getElementById('starPick');
+                    if (!wrap) return;
+                    var stars = Array.prototype.slice.call(wrap.querySelectorAll('span'));
+                    function paint(n) {
+                        stars.forEach(function (sp, idx) { sp.classList.toggle('lit', idx < n); });
+                    }
+                    paint(wrap.querySelector('input:checked') ? parseInt(wrap.querySelector('input:checked').value, 10) : 0);
+                    wrap.querySelectorAll('label').forEach(function (lb, idx) {
+                        lb.addEventListener('mouseenter', function () { paint(idx + 1); });
+                        lb.addEventListener('click', function () { paint(idx + 1); });
+                    });
+                    wrap.addEventListener('mouseleave', function () {
+                        var c = wrap.querySelector('input:checked');
+                        paint(c ? parseInt(c.value, 10) : 0);
+                    });
+                })();
+                </script>
+                <label>Your review <small class="opt">(optional)</small></label>
+                <textarea name="comment" rows="3" maxlength="1000" placeholder="How were the flowers?"><?php echo e($myReview['comment'] ?? ''); ?></textarea>
+                <button type="submit" class="btn btn-dark"><?php echo $myReview ? 'Update Review' : 'Submit Review'; ?></button>
+            </form>
+            <?php endif; ?>
+        </div>
     </div>
 </section>
 

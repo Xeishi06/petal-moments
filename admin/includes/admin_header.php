@@ -10,6 +10,7 @@ $navLabels = [
     'products'    => 'Products',
     'addons'      => 'Add-ons',
     'variants'    => 'Variants',
+    'reviews'     => 'Reviews',
     'categories'  => 'Categories',
     'orders'      => 'Orders',
     'users'       => 'Users',
@@ -74,6 +75,10 @@ try {
             <a href="variants.php" class="<?php echo ($active ?? '') === 'variants' ? 'active' : ''; ?>">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v3M12 18v3M3 12h3M18 12h3"/><circle cx="12" cy="12" r="4"/></svg>
                 Variants
+            </a>
+            <a href="reviews.php" class="<?php echo ($active ?? '') === 'reviews' ? 'active' : ''; ?>">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2l2.9 6.3 6.9.8-5.1 4.7 1.4 6.8L12 17l-6.1 3.6 1.4-6.8L2.2 9.1l6.9-.8L12 2Z"/></svg>
+                Reviews
             </a>
             <a href="orders.php" class="<?php echo ($active ?? '') === 'orders' ? 'active' : ''; ?>">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 2h12v20l-3-2-3 2-3-2-3 2V2Z"/><path d="M9 7h6"/><path d="M9 11h6"/></svg>

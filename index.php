@@ -16,6 +16,7 @@ if (is_logged_in()) {
     $savedIds->execute([':u' => $_SESSION['user_id']]);
     $savedIds = array_map('intval', array_column($savedIds->fetchAll(), 'product_id'));
 }
+$soldCounts = product_sold_counts(array_column($featured, 'id'));
 ?>
 <?php $pageTitle = 'Petal Moments | Flowers & Events'; include __DIR__ . '/includes/header.php'; ?>
 
@@ -168,7 +169,7 @@ if (is_logged_in()) {
                         <div class="product-details">
                             <div>
                                 <h3><?php echo e($p['name'] ?? 'Arrangement'); ?></h3>
-                                <p><?php echo e($p['category_name'] ?? 'For any occasion'); ?></p>
+                                <p><?php echo e($p['category_name'] ?? 'For any occasion'); ?><?php echo ($soldCounts[(int)$p['id']] ?? 0) > 0 ? ' • 🔥 ' . (int)$soldCounts[(int)$p['id']] . ' sold' : ''; ?></p>
                             </div>
                             <strong>₱<?php echo number_format((float)($p['price'] ?? 0), 2); ?></strong>
                         </div>

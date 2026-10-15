@@ -26,6 +26,7 @@ $sql .= $sort === 'price_asc' ? " ORDER BY p.price ASC" : ($sort === 'price_desc
 $stmt = db()->prepare($sql);
 $stmt->execute($params);
 $products = $stmt->fetchAll();
+$soldCounts = product_sold_counts(array_column($products, 'id'));
 
 $allCats = db()->query("SELECT id, name, slug FROM categories WHERE is_active = 1 ORDER BY id")->fetchAll();
 $savedIds = [];
@@ -68,6 +69,7 @@ foreach ($allCats as $c) { if ($c['slug'] === $categorySlug) { $activeCatName = 
         </div>
 
         <?php if (count($products) > 0): ?>
+        <p class="result-count">Showing <?php echo count($products); ?> arrangement<?php echo count($products) === 1 ? '' : 's'; ?><?php echo $search !== '' ? ' for “' . e($search) . '”' : ''; ?></p>
         <div class="product-grid">
             <?php foreach ($products as $p): ?>
             <article class="product-card">
@@ -79,7 +81,7 @@ foreach ($allCats as $c) { if ($c['slug'] === $categorySlug) { $activeCatName = 
                 <div class="product-details">
                     <div>
                         <h3><?php echo e($p['name'] ?? 'Arrangement'); ?></h3>
-                        <p><?php echo e($p['category_name'] ?? 'For any occasion'); ?></p>
+                        <p><?php echo e($p['category_name'] ?? 'For any occasion'); ?><?php echo ($soldCounts[(int)$p['id']] ?? 0) > 0 ? ' • 🔥 ' . (int)$soldCounts[(int)$p['id']] . ' sold' : ''; ?></p>
                     </div>
                     <strong>₱<?php echo number_format((float)($p['price'] ?? 0), 2); ?></strong>
                 </div>
@@ -90,7 +92,12 @@ foreach ($allCats as $c) { if ($c['slug'] === $categorySlug) { $activeCatName = 
             <?php endforeach; ?>
         </div>
         <?php else: ?>
-            <p class="empty-state">No arrangements found. Try a different search.</p>
+            <p class="empty-state">No arrangements found<?php echo $search !== '' ? ' for “' . e($search) . '”' : ''; ?>. Try a different search, or browse:</p>
+            <div class="category-tabs">
+                <?php foreach ($allCats as $c): ?>
+                    <a href="shop.php?category=<?php echo e($c['slug']); ?>"><?php echo e($c['name']); ?></a>
+                <?php endforeach; ?>
+            </div>
         <?php endif; ?>
 
     </div>

@@ -10,6 +10,22 @@ if (!isset($_SESSION['cart'])) {
 // Shop GCash account — REPLACE with your real number before going live
 $shopGcash = '0917 123 4567 (Petal Moments)';
 
+// Saved addresses: profile address + distinct past delivery addresses
+$addrOptions = [];
+try {
+    $me = db()->prepare("SELECT address FROM users WHERE id = :id");
+    $me->execute([':id' => $_SESSION['user_id']]);
+    if ($row = $me->fetch()) {
+        if (trim($row['address'] ?? '') !== '') { $addrOptions[] = trim($row['address']); }
+    }
+    $past = db()->prepare("SELECT DISTINCT delivery_address FROM orders WHERE user_id = :id AND delivery_address IS NOT NULL AND delivery_address != '' ORDER BY created_at DESC LIMIT 5");
+    $past->execute([':id' => $_SESSION['user_id']]);
+    foreach ($past->fetchAll() as $pr) {
+        if (!in_array($pr['delivery_address'], $addrOptions, true)) { $addrOptions[] = $pr['delivery_address']; }
+    }
+} catch (Exception $e) { /* suggestions are best-effort */ }
+$defaultAddr = $addrOptions[0] ?? '';
+
 // Buy Now mode: check out ONLY the buy-now item, cart stays saved
 $isBuyNow = (($_GET['mode'] ?? '') === 'buynow') && !empty($_SESSION['buy_now']);
 $storeKey = $isBuyNow ? 'buy_now' : 'cart';
@@ -227,8 +243,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
                     <div id="addressWrap">
                         <label>Delivery Address *</label>
-                        <input type="text" name="delivery_address" id="deliveryAddress" maxlength="255"
-                               value="<?php echo e($_SESSION['address'] ?? ''); ?>" required>
+                        <input type="text" name="delivery_address" id="deliveryAddress" maxlength="255" list="addrList"
+                               value="<?php echo e($defaultAddr); ?>" required>
+                        <?php if (!empty($addrOptions)): ?>
+                        <datalist id="addrList">
+                            <?php foreach ($addrOptions as $ao): ?><option value="<?php echo e($ao); ?>"><?php endforeach; ?>
+                        </datalist>
+                        <?php endif; ?>
                     </div>
                     <p class="pickup-note" id="pickupNote" hidden>Pick up at <strong>688 B. Manuel St., Montalban, Rizal</strong> — we'll message you when your flowers are ready.</p>
 
