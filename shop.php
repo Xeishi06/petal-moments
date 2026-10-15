@@ -10,7 +10,7 @@ if (!in_array($sort, ['newest', 'price_asc', 'price_desc'], true)) { $sort = 'ne
 $sql   = "SELECT p.*, c.name AS category_name
           FROM products p
           LEFT JOIN categories c ON c.id = p.category_id
-          WHERE p.is_active = 1";
+          WHERE p.is_active = 1 AND p.is_addon = 0";
 $params = [];
 
 if ($categorySlug !== '') {
