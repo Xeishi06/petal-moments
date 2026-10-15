@@ -18,8 +18,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         flash('error', 'Please fill in all required fields.');
     } elseif (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
         flash('error', 'Please enter a valid email address.');
-    } elseif (strlen($password) < 6) {
-        flash('error', 'Password must be at least 6 characters.');
+    } elseif (($pwErr = password_strength($password)) !== '') {
+        flash('error', $pwErr);
     } else {
         $stmt = db()->prepare("SELECT id FROM users WHERE email = :e");
         $stmt->execute([':e' => $email]);
@@ -74,12 +74,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 <label>Address</label>
                 <input type="text" name="address" value="<?php echo e($_POST['address'] ?? ''); ?>">
 
-                <label>Password *</label>
-                <input type="password" name="password" id="password" required>
-
-                <label class="show-password">
-                    <input type="checkbox" onchange="document.getElementById('password').type = this.checked ? 'text' : 'password';"> Show password
-                </label>
+                <label>Password * <small class="opt">(min 8 chars, letters + numbers)</small></label>
+                <div class="pass-wrap">
+                    <input type="password" name="password" id="password" required>
+                    <button type="button" class="pass-eye" data-showpass="password" aria-label="Show password">👁</button>
+                </div>
 
                 <button type="submit" class="btn btn-primary">Create Account</button>
             </form>

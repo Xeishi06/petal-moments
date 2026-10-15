@@ -46,6 +46,36 @@ function verify_csrf($token)
     return isset($_SESSION['csrf']) && is_string($token) && hash_equals($_SESSION['csrf'], $token);
 }
 
+// Returns '' when the password is strong enough, otherwise a human reason.
+function password_strength($pw)
+{
+    if (strlen($pw) < 8) {
+        return 'Password must be at least 8 characters.';
+    }
+    if (!preg_match('/[A-Za-z]/', $pw) || !preg_match('/[0-9]/', $pw)) {
+        return 'Password needs both letters and numbers.';
+    }
+    return '';
+}
+
+// Simple brute-force brake: max 5 password-change tries per 15 minutes.
+function pw_change_allowed()
+{
+    start_session();
+    $now = time();
+    $_SESSION['pw_attempts'] = array_values(array_filter(
+        $_SESSION['pw_attempts'] ?? [],
+        function ($t) use ($now) { return ($now - $t) < 900; }
+    ));
+    return count($_SESSION['pw_attempts']) < 5;
+}
+
+function pw_change_hit()
+{
+    start_session();
+    $_SESSION['pw_attempts'][] = time();
+}
+
 function is_logged_in()
 {
     return isset($_SESSION['user_id']);

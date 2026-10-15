@@ -1477,6 +1477,21 @@ a.floating-card:hover {
   margin-bottom: 4px;
 }
 .opt { font-weight: 400; color: var(--muted); font-size: 0.72rem; }
+/* Password visibility toggle */
+.pass-wrap { position: relative; }
+.pass-wrap input { width: 100%; padding-right: 44px; }
+.pass-eye {
+  position: absolute;
+  right: 8px;
+  top: 50%;
+  transform: translateY(-50%);
+  border: 0;
+  background: transparent;
+  cursor: pointer;
+  font-size: 1.05rem;
+  padding: 6px;
+  line-height: 1;
+}
 /* Sale pricing */
 .was { color: var(--muted); font-weight: 400; font-size: 0.85em; text-decoration: line-through; }
 .sale-tag {

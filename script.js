@@ -125,6 +125,20 @@ if (modal) {
   });
 })();
 
+// ===== Show/hide password toggles =====
+(function () {
+  document.querySelectorAll("[data-showpass]").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      const input = document.getElementById(btn.getAttribute("data-showpass"));
+      if (!input) return;
+      const show = input.type === "password";
+      input.type = show ? "text" : "password";
+      btn.textContent = show ? "🙈" : "👁";
+      btn.setAttribute("aria-label", show ? "Hide password" : "Show password");
+    });
+  });
+})();
+
 // ===== Auto-dismiss flash messages after 4s =====
 (function () {
   const flashes = document.querySelectorAll(".flash-alert");

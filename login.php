@@ -36,11 +36,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 <input type="email" name="email" value="<?php echo e($_POST['email'] ?? ''); ?>" required>
 
                 <label>Password</label>
-                <input type="password" name="password" id="password" required>
-
-                <label class="show-password">
-                    <input type="checkbox" onchange="document.getElementById('password').type = this.checked ? 'text' : 'password';"> Show password
-                </label>
+                <div class="pass-wrap">
+                    <input type="password" name="password" id="password" required>
+                    <button type="button" class="pass-eye" data-showpass="password" aria-label="Show password">👁</button>
+                </div>
 
                 <button type="submit" class="btn btn-primary">Log In</button>
             </form>

@@ -31,15 +31,23 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['form'] ?? '') === 'passwor
     $row = db()->prepare("SELECT password FROM users WHERE id = :id");
     $row->execute([':id' => $_SESSION['user_id']]);
     $hash = ($row->fetch())['password'] ?? '';
-    if (!password_verify($current, $hash)) {
+    if (!pw_change_allowed()) {
+        pw_change_hit();
+        flash('error', 'Too many tries. Wait 15 minutes before changing your password again.');
+    } elseif (!password_verify($current, $hash)) {
+        pw_change_hit();
         flash('error', 'Your current password is incorrect.');
-    } elseif (strlen($new) < 6) {
-        flash('error', 'New password must be at least 6 characters.');
+    } elseif (($pwErr = password_strength($new)) !== '') {
+        flash('error', $pwErr);
     } elseif ($new !== $confirm) {
         flash('error', 'New passwords do not match.');
+    } elseif (password_verify($new, $hash)) {
+        flash('error', 'New password must be different from the current one.');
     } else {
         db()->prepare("UPDATE users SET password = :pw WHERE id = :id")
             ->execute([':pw' => password_hash($new, PASSWORD_BCRYPT), ':id' => $_SESSION['user_id']]);
+        unset($_SESSION['pw_attempts']);
+        session_regenerate_id(true);
         flash('success', 'Password changed. Use it next time you log in.');
     }
     redirect('account.php?tab=security');
@@ -198,11 +206,20 @@ if (!in_array($tab, $validTabs, true)) { $tab = 'account'; }
                     <input type="hidden" name="form" value="password">
                     <input type="hidden" name="csrf" value="<?php echo e(csrf_token()); ?>">
                     <label>Current password *</label>
-                    <input type="password" name="current_password" required autocomplete="current-password">
-                    <label>New password *</label>
-                    <input type="password" name="new_password" required autocomplete="new-password">
+                    <div class="pass-wrap">
+                        <input type="password" name="current_password" required autocomplete="current-password" id="curPass">
+                        <button type="button" class="pass-eye" data-showpass="curPass" aria-label="Show password">👁</button>
+                    </div>
+                    <label>New password * <small class="opt">(min 8 chars, letters + numbers)</small></label>
+                    <div class="pass-wrap">
+                        <input type="password" name="new_password" required autocomplete="new-password" id="newPass">
+                        <button type="button" class="pass-eye" data-showpass="newPass" aria-label="Show password">👁</button>
+                    </div>
                     <label>Confirm new password *</label>
-                    <input type="password" name="confirm_password" required autocomplete="new-password">
+                    <div class="pass-wrap">
+                        <input type="password" name="confirm_password" required autocomplete="new-password" id="cfmPass">
+                        <button type="button" class="pass-eye" data-showpass="cfmPass" aria-label="Show password">👁</button>
+                    </div>
                     <button type="submit" class="btn btn-dark" style="margin-top:14px;">Change Password</button>
                 </form>
 
