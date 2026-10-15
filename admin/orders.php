@@ -147,7 +147,7 @@ $orders = $oq->fetchAll();
                 </td>
                 <td><?php echo (int)$o['items']; ?><?php if (!empty($o['item_names'])): ?><br><small title="<?php echo e($o['item_names']); ?>"><?php echo e(mb_strimwidth($o['item_names'], 0, 42, '…')); ?></small><?php endif; ?></td>
                 <td>₱<?php echo number_format((float)$o['total_amount'], 2); ?></td>
-                <td><?php echo e(pay_label($o['payment_method'])); ?><?php echo ($o['payment_method'] === 'gcash' && !empty($o['payment_ref'])) ? ' • Ref: ' . e($o['payment_ref']) : ''; ?><?php echo ($o['payment_method'] === 'gcash' && empty($o['pay_verified'])) ? ' <span class="chip chip-out">Unverified</span>' : ''; ?></td>
+                <td><?php echo e(pay_label($o['payment_method'])); ?><?php echo (in_array($o['payment_method'], ['gcash', 'card']) && !empty($o['payment_ref'])) ? ' • Ref: ' . e($o['payment_ref']) : ''; ?><?php echo (in_array($o['payment_method'], ['gcash', 'card']) && empty($o['pay_verified'])) ? ' <span class="chip chip-out">Unverified</span>' : ''; ?></td>
                 <td><span class="badge badge-<?php echo e($o['status']); ?>"><?php echo ucfirst(e($o['status'])); ?></span></td>
                 <td><?php echo date('M j, Y', strtotime($o['created_at'])); ?></td>
                 <td>

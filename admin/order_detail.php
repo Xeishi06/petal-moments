@@ -116,7 +116,7 @@ include __DIR__ . '/includes/admin_header.php';
             <div><span>Payment</span><strong><?php echo e(pay_label($order['payment_method'])); ?></strong></div>
             <div class="wide"><span><?php echo ($order['fulfillment'] ?? 'delivery') === 'pickup' ? 'Pickup point' : 'Deliver to'; ?></span><p><?php echo ($order['fulfillment'] ?? 'delivery') === 'pickup' ? e(setting('pickup_address', 'Shop pickup')) : e($order['delivery_address'] ?? '—'); ?></p></div>
             <div><span>Date</span><strong><?php echo $order['delivery_date'] ? e(date('M j, Y', strtotime($order['delivery_date']))) : '—'; ?></strong></div>
-            <?php if ($order['payment_method'] === 'gcash'): ?><div><span>GCash ref</span><strong><?php echo e($order['payment_ref'] ?? '— missing —'); ?></strong></div><?php endif; ?>
+            <?php if (in_array($order['payment_method'], ['gcash', 'card']) && !empty($order['payment_ref'])): ?><div><span><?php echo $order['payment_method'] === 'card' ? 'Approval code' : 'GCash ref'; ?></span><strong><?php echo e($order['payment_ref']); ?></strong></div><?php elseif ($order['payment_method'] === 'gcash'): ?><div><span>GCash ref</span><strong>— missing —</strong></div><?php endif; ?>
             <?php if (!empty($dupOrders)): ?>
                 <div class="wide"><span>⚠ Duplicate ref</span><p style="color:#b34f4f;font-weight:600;">Same reference used on order(s): <?php foreach ($dupOrders as $d): ?><a href="order_detail.php?id=<?php echo (int)$d; ?>">#<?php echo (int)$d; ?></a> <?php endforeach; ?> — verify carefully.</p></div>
             <?php endif; ?>

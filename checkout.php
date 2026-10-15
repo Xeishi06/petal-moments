@@ -124,6 +124,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $deliveryNotes   = trim($_POST['delivery_notes'] ?? '');
     $paymentMethod   = $_POST['payment_method'] ?? 'cash_on_delivery';
     $paymentRef      = trim($_POST['payment_ref'] ?? '');
+    $cardAuth        = trim($_POST['card_auth'] ?? '');
     $senderNo        = mb_substr(trim($_POST['sender_no'] ?? ''), 0, 100);
     if ($senderNo === '') { $senderNo = mb_substr(trim($_POST['sender_no_card'] ?? ''), 0, 100); }
 
@@ -173,6 +174,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             }
         }
         if ($receiptErr !== null) { $errors[] = $receiptErr; }
+    }
+    if ($paymentMethod === 'card' && $cardAuth !== '') {
+        if (!preg_match('/^[A-Za-z0-9]{4,20}$/', $cardAuth)) {
+            $errors[] = 'Approval code should be 4–20 letters or numbers.';
+        } else {
+            $dupAuth = db()->prepare("SELECT id FROM orders WHERE payment_method = 'card' AND payment_ref = :ref AND status != 'cancelled' LIMIT 1");
+            $dupAuth->execute([':ref' => $cardAuth]);
+            if ($dupAuth->fetch()) {
+                $errors[] = 'This approval code was already used on another order. Please check the receipt.';
+            }
+        }
     }
     if ($fulfillment === 'delivery') {
         if ($deliveryAddress === '') {
@@ -258,7 +270,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 ':date'    => $deliveryDate !== '' ? $deliveryDate : null,
                 ':notes'   => $deliveryNotes,
                 ':method'  => $paymentMethod,
-                ':ref'     => $paymentMethod === 'gcash' ? $paymentRef : null,
+                ':ref'     => $paymentMethod === 'gcash' ? $paymentRef : ($paymentMethod === 'card' && $cardAuth !== '' ? $cardAuth : null),
                 ':sender'  => in_array($paymentMethod, ['gcash', 'card'], true) && $senderNo !== '' ? $senderNo : null,
                 ':fulfill' => $fulfillment,
             ]);
@@ -402,6 +414,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         <p>Have your card ready — our rider/cashier brings the terminal.</p>
                         <label>Which card are you bringing? <small class="opt">(optional)</small></label>
                         <input type="text" name="sender_no_card" id="senderCard" maxlength="100" list="cardList" placeholder="e.g. BDO ••1234" value="<?php echo ($defaultPay && $defaultPay['method'] === 'card') ? e($defaultPay['detail']) : ''; ?>">
+                        <label>Terminal approval code <small class="opt">(optional — from the receipt, helps us verify faster)</small></label>
+                        <input type="text" name="card_auth" id="cardAuth" maxlength="20" placeholder="e.g. 847392">
                         <?php if (!empty($savedCards)): ?>
                         <datalist id="cardList">
                             <?php foreach ($savedCards as $sc): ?><option value="<?php echo e($sc['detail']); ?>"><?php echo e($sc['label']); ?></option><?php endforeach; ?>
@@ -501,6 +515,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                             var snd = senderInput ? senderInput.value.replace(/\s+/g, '') : '';
                             if (snd === '') { msgs.push('Please enter the GCash number you paid from.'); }
                             else if (!/^[0-9]{10,13}$/.test(snd)) { msgs.push('Your GCash number should be 10–13 digits.'); }
+                        }
+                        if (pay === 'card') {
+                            var authEl = document.getElementById('cardAuth');
+                            var auth = authEl ? authEl.value.trim() : '';
+                            if (auth !== '' && !/^[A-Za-z0-9]{4,20}$/.test(auth)) { msgs.push('Approval code should be 4–20 letters or numbers.'); }
                         }
                         if (msgs.length) {
                             ev.preventDefault();
