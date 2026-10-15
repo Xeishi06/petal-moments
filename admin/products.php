@@ -20,7 +20,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['form'] ?? '') === 'product
     $image     = trim($_POST['image'] ?? '');
     $desc      = trim($_POST['description'] ?? '');
     $featured  = isset($_POST['is_featured']) ? 1 : 0;
-    $isAddon   = isset($_POST['is_addon']) ? 1 : 0;
     $slug      = strtolower(preg_replace('/[^a-z0-9]+/i', '-', $name));
 
     // File upload takes precedence over URL if a file was picked
@@ -53,12 +52,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['form'] ?? '') === 'product
         flash('error', $uploadError);
     } else {
         if ($id > 0) {
-            $pdo->prepare("UPDATE products SET category_id=:c, name=:n, slug=:s, description=:d, price=:p, image=:i, stock=:st, is_featured=:f, is_addon=:a WHERE id=:id")
-                ->execute([':c'=>$category?:null, ':n'=>$name, ':s'=>$slug, ':d'=>$desc, ':p'=>$price, ':i'=>$image, ':st'=>$stock, ':f'=>$featured, ':a'=>$isAddon, ':id'=>$id]);
+            $pdo->prepare("UPDATE products SET category_id=:c, name=:n, slug=:s, description=:d, price=:p, image=:i, stock=:st, is_featured=:f WHERE id=:id")
+                ->execute([':c'=>$category?:null, ':n'=>$name, ':s'=>$slug, ':d'=>$desc, ':p'=>$price, ':i'=>$image, ':st'=>$stock, ':f'=>$featured, ':id'=>$id]);
             flash('success', 'Product updated.');
         } else {
-            $pdo->prepare("INSERT INTO products (category_id, name, slug, description, price, image, stock, is_featured, is_addon) VALUES (:c,:n,:s,:d,:p,:i,:st,:f,:a)")
-                ->execute([':c'=>$category?:null, ':n'=>$name, ':s'=>$slug, ':d'=>$desc, ':p'=>$price, ':i'=>$image, ':st'=>$stock, ':f'=>$featured, ':a'=>$isAddon]);
+            $pdo->prepare("INSERT INTO products (category_id, name, slug, description, price, image, stock, is_featured, is_addon) VALUES (:c,:n,:s,:d,:p,:i,:st,:f,0)")
+                ->execute([':c'=>$category?:null, ':n'=>$name, ':s'=>$slug, ':d'=>$desc, ':p'=>$price, ':i'=>$image, ':st'=>$stock, ':f'=>$featured]);
             flash('success', 'Product added.');
         }
         redirect('products.php');
@@ -116,13 +115,10 @@ $adminTitle = 'Products | Petal Moments Admin';
 include __DIR__ . '/includes/admin_header.php';
 
 $categories = $pdo->query("SELECT * FROM categories ORDER BY name")->fetchAll();
-$typeFilter = $_GET['type'] ?? 'all';
-if (!in_array($typeFilter, ['all', 'flowers', 'addons'], true)) { $typeFilter = 'all'; }
-$typeWhere = $typeFilter === 'flowers' ? 'WHERE p.is_addon = 0' : ($typeFilter === 'addons' ? 'WHERE p.is_addon = 1' : '');
 $products = $pdo->query("
     SELECT p.*, c.name AS category_name
     FROM products p LEFT JOIN categories c ON c.id = p.category_id
-    $typeWhere
+    WHERE p.is_addon = 0
     ORDER BY p.id DESC
 ")->fetchAll();
 
@@ -148,7 +144,7 @@ $heroIds = array_map('intval', array_column(
 
 <div class="admin-card">
     <h1>Products</h1>
-    <p>Manage your floral arrangements. Tip: tick <strong>Featured</strong> to put a product in homepage <strong>Best Sellers + hero slideshow</strong>.</p>
+    <p>Manage your floral arrangements. Tip: tick <strong>Featured</strong> to put a product in homepage <strong>Best Sellers + hero slideshow</strong>. Gift add-ons live under <a href="addons.php"><strong>Add-ons</strong></a> in the menu.</p>
 </div>
 
 <div class="admin-card">
@@ -212,7 +208,6 @@ $heroIds = array_map('intval', array_column(
         <textarea name="description" rows="3"><?php echo e($editing['description'] ?? ''); ?></textarea>
 
         <label class="checkbox"><input type="checkbox" name="is_featured" <?php echo ($editing && $editing['is_featured']) ? 'checked' : ''; ?>> Featured — shows in Best Sellers & hero slideshow</label>
-        <label class="checkbox"><input type="checkbox" name="is_addon" <?php echo ($editing && !empty($editing['is_addon'])) ? 'checked' : ''; ?>> Gift add-on — shows in “Complete your gift” (independent of category)</label>
 
         <div class="form-actions">
             <button type="submit" class="btn btn-primary"><?php echo $editing ? 'Save Changes' : 'Add Product'; ?></button>
@@ -235,15 +230,10 @@ $heroIds = array_map('intval', array_column(
 </div>
 
 <div class="admin-card">
-    <div class="category-tabs" style="margin-bottom:0;">
-        <a href="products.php" class="<?php echo $typeFilter === 'all' ? 'active' : ''; ?>">All</a>
-        <a href="products.php?type=flowers" class="<?php echo $typeFilter === 'flowers' ? 'active' : ''; ?>">Flowers</a>
-        <a href="products.php?type=addons" class="<?php echo $typeFilter === 'addons' ? 'active' : ''; ?>">Gift Add-ons</a>
-    </div>
-    <div class="table-scroll" style="margin-top:16px;">
+    <div class="table-scroll" style="margin-top:0;">
     <table class="admin-table">
         <thead>
-            <tr><th>Product</th><th>Category</th><th>Price</th><th>Stock</th><th>Type</th><th>Featured</th><th>Actions</th></tr>
+            <tr><th>Product</th><th>Category</th><th>Price</th><th>Stock</th><th>Featured</th><th>Actions</th></tr>
         </thead>
         <tbody>
         <?php foreach ($products as $p): ?>
@@ -264,7 +254,6 @@ $heroIds = array_map('intval', array_column(
                 <td><?php echo e($p['category_name'] ?? '—'); ?></td>
                 <td>₱<?php echo number_format((float)$p['price'], 2); ?></td>
                 <td><span class="chip <?php echo $p['stock'] > 0 ? 'chip-in' : 'chip-out'; ?>"><?php echo (int)$p['stock']; ?> <?php echo $p['stock'] == 1 ? 'item' : 'items'; ?></span></td>
-                <td><?php echo !empty($p['is_addon']) ? '<span class="chip chip-yes">Add-on</span>' : '<span class="chip chip-no">Flower</span>'; ?></td>
                 <td>
                     <?php if (in_array((int)$p['id'], $heroIds, true)): ?>
                         <span class="chip chip-yes">★ Slideshow</span>
