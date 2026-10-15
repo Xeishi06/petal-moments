@@ -101,6 +101,7 @@ include __DIR__ . '/includes/admin_header.php';
             <div class="wide"><span><?php echo ($order['fulfillment'] ?? 'delivery') === 'pickup' ? 'Pickup point' : 'Deliver to'; ?></span><p><?php echo ($order['fulfillment'] ?? 'delivery') === 'pickup' ? e(setting('pickup_address', 'Shop pickup')) : e($order['delivery_address'] ?? '—'); ?></p></div>
             <div><span>Date</span><strong><?php echo $order['delivery_date'] ? e(date('M j, Y', strtotime($order['delivery_date']))) : '—'; ?></strong></div>
             <?php if ($order['payment_method'] === 'gcash'): ?><div><span>GCash ref</span><strong><?php echo e($order['payment_ref'] ?? '— missing —'); ?></strong></div><?php endif; ?>
+            <?php if (!empty($order['sender_no'])): ?><div><span><?php echo $order['payment_method'] === 'card' ? 'Card used' : 'Paid from'; ?></span><strong><?php echo e($order['sender_no']); ?></strong></div><?php endif; ?>
             <div class="wide"><span>Notes</span><p><?php echo !empty($order['delivery_notes']) ? nl2br(e($order['delivery_notes'])) : '<span class="link-soft">—</span>'; ?></p></div>
         </div>
 

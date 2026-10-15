@@ -23,6 +23,7 @@ CREATE TABLE users (
   address       VARCHAR(255) NULL,
   role          ENUM('customer','admin') NOT NULL DEFAULT 'customer',
   is_active     TINYINT(1)   NOT NULL DEFAULT 1,
+  theme         ENUM('light','dark') NOT NULL DEFAULT 'light',
   created_at    TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP
 ) ENGINE=InnoDB;
 
@@ -77,6 +78,7 @@ CREATE TABLE orders (
   delivery_notes  TEXT           NULL,
   payment_method  ENUM('cash_on_delivery','gcash','pay_on_pickup','card') NOT NULL DEFAULT 'cash_on_delivery',
   payment_ref     VARCHAR(100)   NULL,
+  sender_no       VARCHAR(100)   NULL,
   fulfillment     ENUM('delivery','pickup') NOT NULL DEFAULT 'delivery',
   status          ENUM('pending','processing','delivered','cancelled')
                                  NOT NULL DEFAULT 'pending',
@@ -220,6 +222,23 @@ DROP TABLE IF EXISTS settings;
 CREATE TABLE settings (
   skey    VARCHAR(60)  PRIMARY KEY,
   svalue  VARCHAR(255) NOT NULL DEFAULT ''
+) ENGINE=InnoDB;
+
+-- ------------------------------------------------------------
+-- SAVED PAYMENTS (customer GCash numbers + card nicknames for quick checkout)
+-- NOTE: only reference data (numbers/nicknames) — never full card PANs.
+-- ------------------------------------------------------------
+DROP TABLE IF EXISTS saved_payments;
+CREATE TABLE saved_payments (
+  id          INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  user_id     INT UNSIGNED   NOT NULL,
+  label       VARCHAR(60)    NOT NULL,
+  method      ENUM('gcash','card') NOT NULL DEFAULT 'gcash',
+  detail      VARCHAR(100)   NOT NULL,
+  created_at  TIMESTAMP      NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  CONSTRAINT fk_spay_user
+    FOREIGN KEY (user_id) REFERENCES users(id)
+    ON DELETE CASCADE ON UPDATE CASCADE
 ) ENGINE=InnoDB;
 
 -- ------------------------------------------------------------

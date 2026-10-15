@@ -8,26 +8,85 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['form'] ?? '') === 'profile
     $lastName  = trim($_POST['last_name'] ?? '');
     $phone     = trim($_POST['phone'] ?? '');
     $address   = trim($_POST['address'] ?? '');
-    $password  = $_POST['password'] ?? '';
 
     if ($firstName === '' || $lastName === '') {
         flash('error', 'Name fields are required.');
     } else {
-        $sql  = "UPDATE users SET first_name=:fn, last_name=:ln, phone=:ph, address=:ad";
-        $params = [':fn'=>$firstName, ':ln'=>$lastName, ':ph'=>$phone, ':ad'=>$address, ':id'=>$_SESSION['user_id']];
-        if ($password !== '') {
-            if (strlen($password) < 6) {
-                flash('error', 'New password must be at least 6 characters.');
-                redirect('account.php');
-            }
-            $sql .= ", password=:pw";
-            $params[':pw'] = password_hash($password, PASSWORD_BCRYPT);
-        }
-        $sql .= " WHERE id=:id";
-        db()->prepare($sql)->execute($params);
+        db()->prepare("UPDATE users SET first_name=:fn, last_name=:ln, phone=:ph, address=:ad WHERE id=:id")
+            ->execute([':fn' => $firstName, ':ln' => $lastName, ':ph' => $phone, ':ad' => $address, ':id' => $_SESSION['user_id']]);
+        $_SESSION['name'] = $firstName . ' ' . $lastName;
         flash('success', 'Profile updated.');
         redirect('account.php');
     }
+}
+
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['form'] ?? '') === 'password') {
+    if (!verify_csrf($_POST['csrf'] ?? '')) {
+        flash('error', 'Session expired. Please try again.');
+        redirect('account.php#security');
+    }
+    $current = $_POST['current_password'] ?? '';
+    $new     = $_POST['new_password'] ?? '';
+    $confirm = $_POST['confirm_password'] ?? '';
+    $row = db()->prepare("SELECT password FROM users WHERE id = :id");
+    $row->execute([':id' => $_SESSION['user_id']]);
+    $hash = ($row->fetch())['password'] ?? '';
+    if (!password_verify($current, $hash)) {
+        flash('error', 'Your current password is incorrect.');
+    } elseif (strlen($new) < 6) {
+        flash('error', 'New password must be at least 6 characters.');
+    } elseif ($new !== $confirm) {
+        flash('error', 'New passwords do not match.');
+    } else {
+        db()->prepare("UPDATE users SET password = :pw WHERE id = :id")
+            ->execute([':pw' => password_hash($new, PASSWORD_BCRYPT), ':id' => $_SESSION['user_id']]);
+        flash('success', 'Password changed. Use it next time you log in.');
+    }
+    redirect('account.php#security');
+}
+
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['form'] ?? '') === 'payment_add') {
+    if (!verify_csrf($_POST['csrf'] ?? '')) {
+        flash('error', 'Session expired. Please try again.');
+        redirect('account.php#payments');
+    }
+    $label  = mb_substr(trim($_POST['plabel'] ?? ''), 0, 60);
+    $method = ($_POST['pmethod'] ?? 'gcash') === 'card' ? 'card' : 'gcash';
+    $detail = mb_substr(trim($_POST['pdetail'] ?? ''), 0, 100);
+    if ($label === '' || $detail === '') {
+        flash('error', 'Give your payment method a name and its number.');
+    } elseif ($method === 'gcash' && !preg_match('/^[0-9]{10,13}$/', preg_replace('/\s+/', '', $detail))) {
+        flash('error', 'GCash number should be 10–13 digits.');
+    } else {
+        db()->prepare("INSERT INTO saved_payments (user_id, label, method, detail) VALUES (:u, :l, :m, :d)")
+            ->execute([':u' => $_SESSION['user_id'], ':l' => $label, ':m' => $method, ':d' => $detail]);
+        flash('success', 'Payment method saved.');
+    }
+    redirect('account.php#payments');
+}
+
+if (isset($_GET['delpay'])) {
+    if (!verify_csrf($_GET['csrf'] ?? '')) {
+        flash('error', 'Session expired. Please try again.');
+    } else {
+        db()->prepare("DELETE FROM saved_payments WHERE id = :id AND user_id = :u")
+            ->execute([':id' => (int)$_GET['delpay'], ':u' => $_SESSION['user_id']]);
+        flash('success', 'Saved payment removed.');
+    }
+    redirect('account.php#payments');
+}
+
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['form'] ?? '') === 'theme') {
+    if (!verify_csrf($_POST['csrf'] ?? '')) {
+        flash('error', 'Session expired. Please try again.');
+    } else {
+        $theme = ($_POST['theme'] ?? 'light') === 'dark' ? 'dark' : 'light';
+        db()->prepare("UPDATE users SET theme = :t WHERE id = :id")
+            ->execute([':t' => $theme, ':id' => $_SESSION['user_id']]);
+        $_SESSION['theme'] = $theme;
+        flash('success', $theme === 'dark' ? 'Dark mode on. Easy on the eyes. 🌙' : 'Light mode on. ☀️');
+    }
+    redirect('account.php#appearance');
 }
 
 $stmt = db()->prepare("SELECT * FROM users WHERE id = :id");
@@ -74,6 +133,11 @@ $favPreview = db()->prepare("
 ");
 $favPreview->execute([':id' => $_SESSION['user_id']]);
 $favPreview = $favPreview->fetchAll();
+
+$myPayments = db()->prepare("SELECT * FROM saved_payments WHERE user_id = :id ORDER BY created_at DESC");
+$myPayments->execute([':id' => $_SESSION['user_id']]);
+$myPayments = $myPayments->fetchAll();
+$myTheme = $user['theme'] ?? 'light';
 ?>
 <?php $pageTitle = 'My Account | Petal Moments'; include __DIR__ . '/includes/header.php'; ?>
 
@@ -91,10 +155,20 @@ $favPreview = $favPreview->fetchAll();
             <a class="hub-stat" href="#reviews"><span><?php echo $statRev; ?></span><small>Reviews</small></a>
         </div>
 
+        <div class="acct-subnav">
+            <a href="#profile">Profile</a>
+            <a href="#security">Security</a>
+            <a href="#payments">Payments</a>
+            <a href="#appearance">Appearance</a>
+            <a href="#orders">Orders</a>
+            <a href="#favorites">Favorites</a>
+            <a href="#reviews">Reviews</a>
+        </div>
+
         <div class="account-grid">
-            <div class="account-profile">
+            <div class="account-profile" id="profile">
                 <h3>Profile</h3>
-                <form method="post" action="account.php">
+                <form method="post" action="account.php#profile">
                     <input type="hidden" name="form" value="profile">
                     <div class="form-row">
                         <div>
@@ -112,12 +186,79 @@ $favPreview = $favPreview->fetchAll();
                     <input type="text" name="phone" value="<?php echo e($user['phone']); ?>">
                     <label>Address</label>
                     <input type="text" name="address" value="<?php echo e($user['address']); ?>">
-                    <label>New password (leave blank to keep current)</label>
-                    <input type="password" name="password">
                     <button type="submit" class="btn btn-primary">Save Changes</button>
                 </form>
             </div>
 
+            <div class="account-profile" id="security">
+                <h3>🔒 Security</h3>
+                <p class="acct-note">Signed in as <?php echo e($user['email']); ?> • member since <?php echo date('M Y', strtotime($user['created_at'])); ?></p>
+                <form method="post" action="account.php#security">
+                    <input type="hidden" name="form" value="password">
+                    <input type="hidden" name="csrf" value="<?php echo e(csrf_token()); ?>">
+                    <label>Current password *</label>
+                    <input type="password" name="current_password" required autocomplete="current-password">
+                    <label>New password *</label>
+                    <input type="password" name="new_password" required autocomplete="new-password">
+                    <label>Confirm new password *</label>
+                    <input type="password" name="confirm_password" required autocomplete="new-password">
+                    <button type="submit" class="btn btn-dark">Change Password</button>
+                </form>
+            </div>
+        </div>
+
+        <div class="account-grid">
+            <div class="account-profile" id="payments">
+                <h3>💳 Saved Payments</h3>
+                <p class="acct-note">GCash numbers appear as one-tap picks at checkout. Cards are reminders only — pay by card in person.</p>
+                <?php if (!empty($myPayments)): ?>
+                    <?php foreach ($myPayments as $pm): ?>
+                    <div class="pay-row">
+                        <div>
+                            <strong><?php echo $pm['method'] === 'gcash' ? 'GCash' : '💳 Card'; ?> — <?php echo e($pm['label']); ?></strong>
+                            <small><?php echo e($pm['detail']); ?></small>
+                        </div>
+                        <a class="remove-link" href="account.php?delpay=<?php echo (int)$pm['id']; ?>&csrf=<?php echo e(csrf_token()); ?>" onclick="return confirm('Remove this saved payment?');">Remove</a>
+                    </div>
+                    <?php endforeach; ?>
+                <?php else: ?>
+                    <p class="empty-state">No saved payments yet.</p>
+                <?php endif; ?>
+                <form method="post" action="account.php#payments" class="pay-add">
+                    <input type="hidden" name="form" value="payment_add">
+                    <input type="hidden" name="csrf" value="<?php echo e(csrf_token()); ?>">
+                    <div class="form-row">
+                        <div>
+                            <label>Nickname *</label>
+                            <input type="text" name="plabel" maxlength="60" placeholder="e.g. My GCash" required>
+                        </div>
+                        <div>
+                            <label>Type *</label>
+                            <select name="pmethod">
+                                <option value="gcash">GCash number</option>
+                                <option value="card">Card (nickname + last 4)</option>
+                            </select>
+                        </div>
+                    </div>
+                    <label>Number / details *</label>
+                    <input type="text" name="pdetail" maxlength="100" placeholder="e.g. 09171234567" required>
+                    <button type="submit" class="btn btn-dark btn-small" style="margin-top:10px;">Save Payment</button>
+                </form>
+            </div>
+
+            <div class="account-profile" id="appearance">
+                <h3>🎨 Appearance</h3>
+                <p class="acct-note">Easy on the eyes for late-night flower shopping.</p>
+                <form method="post" action="account.php#appearance" class="theme-row">
+                    <input type="hidden" name="form" value="theme">
+                    <input type="hidden" name="csrf" value="<?php echo e(csrf_token()); ?>">
+                    <button type="submit" name="theme" value="light" class="theme-pick<?php echo $myTheme !== 'dark' ? ' picked' : ''; ?>" aria-pressed="<?php echo $myTheme !== 'dark' ? 'true' : 'false'; ?>">☀️ Light</button>
+                    <button type="submit" name="theme" value="dark" class="theme-pick<?php echo $myTheme === 'dark' ? ' picked' : ''; ?>" aria-pressed="<?php echo $myTheme === 'dark' ? 'true' : 'false'; ?>">🌙 Dark</button>
+                </form>
+            </div>
+        </div>
+
+        <div class="account-wide" id="favorites">
             <div class="account-orders" id="orders">
                 <h3>My Orders</h3>
                 <?php if (empty($myOrders)): ?>
@@ -160,7 +301,7 @@ $favPreview = $favPreview->fetchAll();
                     <?php endforeach; ?>
                 <?php endif; ?>
 
-                <h3 style="margin-top:28px;">My Favorites <a class="text-link" style="font-size:0.8rem;" href="wishlist.php">View all →</a></h3>
+                <h3 id="favorites" style="margin-top:28px;">My Favorites <a class="text-link" style="font-size:0.8rem;" href="wishlist.php">View all →</a></h3>
                 <?php if (empty($favPreview)): ?>
                     <p class="empty-state">Nothing saved yet. <a href="shop.php">Find flowers you love →</a></p>
                 <?php else: ?>

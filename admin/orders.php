@@ -8,7 +8,7 @@ $pdo = db();
 if (isset($_GET['export']) && $_GET['export'] === 'csv') {
     $rows = $pdo->query("
         SELECT o.id, o.created_at, o.status, o.total_amount, o.delivery_fee, o.fulfillment,
-               o.delivery_address, o.delivery_date, o.payment_method, o.payment_ref,
+               o.delivery_address, o.delivery_date, o.payment_method, o.payment_ref, o.sender_no,
                u.first_name, u.last_name, u.email,
                (SELECT GROUP_CONCAT(CONCAT(p.name, ' x', oi.quantity) SEPARATOR '; ')
                 FROM order_items oi LEFT JOIN products p ON p.id = oi.product_id
@@ -21,7 +21,7 @@ if (isset($_GET['export']) && $_GET['export'] === 'csv') {
     header('Content-Disposition: attachment; filename="petal-moments-orders-' . date('Y-m-d') . '.csv"');
     $out = fopen('php://output', 'w');
     fwrite($out, "\xEF\xBB\xBF"); // UTF-8 BOM so ₱ renders in Excel
-    fputcsv($out, ['Order #', 'Date', 'Time', 'Status', 'Items total', 'Delivery fee', 'Total', 'Fulfillment', 'Address', 'Delivery date', 'Payment', 'GCash ref', 'Customer', 'Email', 'Items']);
+    fputcsv($out, ['Order #', 'Date', 'Time', 'Status', 'Items total', 'Delivery fee', 'Total', 'Fulfillment', 'Address', 'Delivery date', 'Payment', 'GCash ref', 'Sender/Card', 'Customer', 'Email', 'Items']);
     foreach ($rows as $r) {
         $dt = strtotime($r['created_at']);
         // ="..." keeps long GCash refs as text instead of 1.23E+12
@@ -39,6 +39,7 @@ if (isset($_GET['export']) && $_GET['export'] === 'csv') {
             $r['delivery_date'] ? date('n/j/y', strtotime($r['delivery_date'])) : '',
             $payLabels[$r['payment_method']] ?? $r['payment_method'],
             $ref,
+            $r['sender_no'] ?? '',
             trim(($r['first_name'] ?? '') . ' ' . ($r['last_name'] ?? '')),
             $r['email'],
             $r['items'],

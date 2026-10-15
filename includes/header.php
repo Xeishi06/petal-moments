@@ -19,7 +19,7 @@ $active    = $active ?? '';
 
     <link rel="stylesheet" href="styles.css" />
 </head>
-<body id="top" data-auth="<?php echo is_logged_in() ? '1' : '0'; ?>" data-csrf="<?php echo e(csrf_token()); ?>">
+<body id="top" class="<?php echo (is_logged_in() && (($_SESSION['theme'] ?? 'light') === 'dark')) ? 'dark' : ''; ?>" data-auth="<?php echo is_logged_in() ? '1' : '0'; ?>" data-csrf="<?php echo e(csrf_token()); ?>">
 
 <div class="announcement">
     <p><?php echo e(setting('announcement', 'Fresh flowers, thoughtfully arranged.')); ?></p>

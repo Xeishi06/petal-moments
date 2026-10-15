@@ -27,6 +27,18 @@ try {
 } catch (Exception $e) { /* suggestions are best-effort */ }
 $defaultAddr = $addrOptions[0] ?? '';
 
+// Saved GCash numbers for one-tap refill at checkout
+$savedGcash = [];
+$savedCards = [];
+try {
+    $sg = db()->prepare("SELECT label, detail, method FROM saved_payments WHERE user_id = :id ORDER BY created_at DESC");
+    $sg->execute([':id' => $_SESSION['user_id']]);
+    foreach ($sg->fetchAll() as $row) {
+        if ($row['method'] === 'card') { $savedCards[] = $row; }
+        else { $savedGcash[] = $row; }
+    }
+} catch (Exception $e) { /* best-effort */ }
+
 // Delivery fee rules (admin Settings; pickup is always free)
 $feeFlat = max(0, (float)setting('delivery_fee', 0));
 $feeFreeMin = max(0, (float)setting('free_delivery_min', 0));
@@ -110,6 +122,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $deliveryNotes   = trim($_POST['delivery_notes'] ?? '');
     $paymentMethod   = $_POST['payment_method'] ?? 'cash_on_delivery';
     $paymentRef      = trim($_POST['payment_ref'] ?? '');
+    $senderNo        = mb_substr(trim($_POST['sender_no'] ?? ''), 0, 100);
+    if ($senderNo === '') { $senderNo = mb_substr(trim($_POST['sender_no_card'] ?? ''), 0, 100); }
 
     $payOptions = $fulfillment === 'pickup'
         ? ['pay_on_pickup' => 'Pay on pickup', 'card' => 'Debit/Credit Card', 'gcash' => 'GCash']
@@ -128,6 +142,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $errors[] = 'GCash reference number should be the 10–13 digit number from your receipt.';
         } elseif (mb_strlen($paymentRef) > 100) {
             $errors[] = 'GCash reference number is too long.';
+        }
+        $senderDigits = preg_replace('/\s+/', '', $senderNo);
+        if ($senderNo === '') {
+            $errors[] = 'Please enter the GCash number you paid from so we can match your payment.';
+        } elseif (!preg_match('/^[0-9]{10,13}$/', $senderDigits)) {
+            $errors[] = 'Your GCash number should be 10–13 digits.';
+        } else {
+            $senderNo = $senderDigits;
         }
     }
     if ($fulfillment === 'delivery') {
@@ -203,8 +225,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             }
             $grandTotal = $total + $orderFee;
             $stmt = $pdo->prepare("
-                INSERT INTO orders (user_id, total_amount, delivery_fee, delivery_address, delivery_date, delivery_notes, payment_method, payment_ref, fulfillment, status)
-                VALUES (:user, :total, :fee, :address, :date, :notes, :method, :ref, :fulfill, 'pending')
+                INSERT INTO orders (user_id, total_amount, delivery_fee, delivery_address, delivery_date, delivery_notes, payment_method, payment_ref, sender_no, fulfillment, status)
+                VALUES (:user, :total, :fee, :address, :date, :notes, :method, :ref, :sender, :fulfill, 'pending')
             ");
             $stmt->execute([
                 ':user'    => $_SESSION['user_id'],
@@ -215,6 +237,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 ':notes'   => $deliveryNotes,
                 ':method'  => $paymentMethod,
                 ':ref'     => $paymentMethod === 'gcash' ? $paymentRef : null,
+                ':sender'  => in_array($paymentMethod, ['gcash', 'card'], true) && $senderNo !== '' ? $senderNo : null,
                 ':fulfill' => $fulfillment,
             ]);
             $orderId = (int)$pdo->lastInsertId();
@@ -321,6 +344,31 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         <p>Send exactly <strong id="gcashAmt">₱<?php echo number_format($cartTotal + quote_fee($cartTotal, false, $feeFlat, $feeFreeMin), 2); ?></strong> to<br><span class="gcash-num"><?php echo e($shopGcash); ?></span></p>
                         <label>GCash reference number *</label>
                         <input type="text" name="payment_ref" id="paymentRef" inputmode="numeric" maxlength="20" placeholder="13-digit number from your receipt">
+                        <label>Your GCash number (paying from) *</label>
+                        <input type="text" name="sender_no" id="senderNo" inputmode="numeric" maxlength="20" list="senderList" placeholder="e.g. 09171234567">
+                        <?php if (!empty($savedGcash)): ?>
+                        <datalist id="senderList">
+                            <?php foreach ($savedGcash as $sgc): ?><option value="<?php echo e(preg_replace('/\s+/', '', $sgc['detail'])); ?>"><?php echo e($sgc['label']); ?></option><?php endforeach; ?>
+                        </datalist>
+                        <div class="saved-chips">
+                            <small>Saved:</small>
+                            <?php foreach ($savedGcash as $sgc): ?>
+                            <button type="button" class="saved-chip" data-sender="<?php echo e(preg_replace('/\s+/', '', $sgc['detail'])); ?>"><?php echo e($sgc['label']); ?></button>
+                            <?php endforeach; ?>
+                        </div>
+                        <?php endif; ?>
+                    </div>
+
+                    <div class="gcash-box" id="cardBox" hidden>
+                        <strong>💳 Pay by card in person</strong>
+                        <p>Have your card ready — our rider/cashier brings the terminal.</p>
+                        <label>Which card are you bringing? <small class="opt">(optional)</small></label>
+                        <input type="text" name="sender_no_card" id="senderCard" maxlength="100" list="cardList" placeholder="e.g. BDO ••1234">
+                        <?php if (!empty($savedCards)): ?>
+                        <datalist id="cardList">
+                            <?php foreach ($savedCards as $sc): ?><option value="<?php echo e($sc['detail']); ?>"><?php echo e($sc['label']); ?></option><?php endforeach; ?>
+                        </datalist>
+                        <?php endif; ?>
                     </div>
 
                     <button type="submit" class="btn btn-primary" id="placeOrderBtn">Place Order</button>
@@ -335,7 +383,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     var errBox = document.getElementById('checkoutErrors');
                     var paySel = document.getElementById('paymentMethod');
                     var gcashBox = document.getElementById('gcashBox');
+                    var cardBox = document.getElementById('cardBox');
                     var refInput = document.getElementById('paymentRef');
+                    var senderInput = document.getElementById('senderNo');
                     function isPickup() {
                         var f = form.querySelector('input[name="fulfillment"]:checked');
                         return f && f.value === 'pickup';
@@ -356,9 +406,20 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         var isGcash = paySel.value === 'gcash';
                         gcashBox.hidden = !isGcash;
                         refInput.required = isGcash;
+                        if (senderInput) { senderInput.required = isGcash; }
+                        var isCard = paySel.value === 'card';
+                        if (cardBox) { cardBox.hidden = !isCard; }
                         var sp = document.getElementById('sumPay');
                         if (sp && paySel.selectedOptions.length) { sp.textContent = paySel.selectedOptions[0].textContent; }
                     }
+                    document.querySelectorAll('.saved-chip').forEach(function (chip) {
+                        chip.addEventListener('click', function () {
+                            if (senderInput) {
+                                senderInput.value = chip.getAttribute('data-sender') || '';
+                                senderInput.focus();
+                            }
+                        });
+                    });
                     form.querySelectorAll('input[name="fulfillment"]').forEach(function (r) {
                         r.addEventListener('change', function () {
                             var pickup = isPickup();
@@ -399,6 +460,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                             var ref = refInput.value.replace(/\s+/g, '');
                             if (ref === '') { msgs.push('Please enter your GCash reference number so we can verify your payment.'); }
                             else if (!/^[0-9]{10,13}$/.test(ref)) { msgs.push('GCash reference number should be the 10–13 digit number from your receipt.'); }
+                            var snd = senderInput ? senderInput.value.replace(/\s+/g, '') : '';
+                            if (snd === '') { msgs.push('Please enter the GCash number you paid from.'); }
+                            else if (!/^[0-9]{10,13}$/.test(snd)) { msgs.push('Your GCash number should be 10–13 digits.'); }
                         }
                         if (msgs.length) {
                             ev.preventDefault();

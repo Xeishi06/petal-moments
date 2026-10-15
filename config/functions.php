@@ -80,6 +80,7 @@ function login_user($user)
     $_SESSION['name']    = $user['first_name'] . ' ' . $user['last_name'];
     $_SESSION['email']   = $user['email'];
     $_SESSION['role']    = $user['role'];
+    $_SESSION['theme']   = $user['theme'] ?? 'light';
 }
 
 function logout_user()
