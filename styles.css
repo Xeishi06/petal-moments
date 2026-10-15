@@ -139,6 +139,7 @@ button {
   font-size: 0.9rem;
   font-weight: 500;
   position: relative;
+  white-space: nowrap;
 }
 
 .main-nav a::after {
@@ -160,6 +161,11 @@ button {
   display: flex;
   align-items: center;
   gap: 10px;
+  flex-shrink: 0;
+}
+
+.nav-actions .btn {
+  white-space: nowrap;
 }
 
 .icon-btn {
@@ -1020,35 +1026,7 @@ a.floating-card:hover {
   gap: 20px;
 }
 
-@media (max-width: 1100px) {
-  .main-nav { gap: 16px; }
-  .main-nav a { font-size: 0.82rem; }
-}
-@media (max-width: 1020px) {
-  .main-nav {
-    gap: 18px;
-  }
-
-  .hero-grid,
-  .event-grid {
-    gap: 45px;
-  }
-
-  .hero-main-photo {
-    width: 100%;
-  }
-
-  .category-grid,
-  .product-grid {
-    grid-template-columns: repeat(2, 1fr);
-  }
-
-  .product-image {
-    height: 420px;
-  }
-}
-
-@media (max-width: 820px) {
+@media (max-width: 1150px) {
   .menu-btn {
     display: block;
     order: 3;
@@ -1074,10 +1052,6 @@ a.floating-card:hover {
   }
 
   .nav-actions {
-    margin-left: auto;
-  }
-
-  .nav-actions {
     display: none;
   }
 
@@ -1089,7 +1063,33 @@ a.floating-card:hover {
     font-weight: 700;
     color: var(--rose-dark);
   }
+}
 
+@media (max-width: 1020px) {
+  .main-nav {
+    gap: 18px;
+  }
+
+  .hero-grid,
+  .event-grid {
+    gap: 45px;
+  }
+
+  .hero-main-photo {
+    width: 100%;
+  }
+
+  .category-grid,
+  .product-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .product-image {
+    height: 420px;
+  }
+}
+
+@media (max-width: 820px) {
   .hero {
     padding-top: 54px;
   }
