@@ -85,7 +85,7 @@ if (is_logged_in()) {
 }
 
 $allVariants = cart_variants();
-$showVariants = ($product['category_slug'] ?? '') !== 'gifts' && count($allVariants) > 1;
+$showVariants = empty($product['is_addon']) && ($product['category_slug'] ?? '') !== 'gifts' && count($allVariants) > 1;
 $defaultVid = cart_default_variant();
 
 // "Complete your gift" cross-sell: add-ons for this occasion (matching
@@ -113,6 +113,7 @@ if ($product['category_id']) { $relStmt->bindValue(':cid', $product['category_id
 $relStmt->execute();
 $related = $relStmt->fetchAll();
 $relSold = product_sold_counts(array_column($related, 'id'));
+$relRatings = product_ratings(array_column($related, 'id'));
 
 // Saved set for the heart buttons below
 $relSaved = [];
@@ -315,7 +316,7 @@ $detailSold = $detailSold[(int)$product['id']] ?? 0;
                     <div class="product-details">
                         <div>
                             <h3><?php echo e($rp['name']); ?></h3>
-                            <p><?php echo e($rp['category_name'] ?? 'For any occasion'); ?><?php echo ($relSold[(int)$rp['id']] ?? 0) > 0 ? ' • 🔥 ' . (int)$relSold[(int)$rp['id']] . ' sold' : ''; ?></p>
+                            <p><?php echo e($rp['category_name'] ?? 'For any occasion'); ?><?php echo ($relSold[(int)$rp['id']] ?? 0) > 0 ? ' • 🔥 ' . (int)$relSold[(int)$rp['id']] . ' sold' : ''; ?><?php $rri = $relRatings[(int)$rp['id']] ?? ['avg' => 0, 'n' => 0]; echo $rri['n'] > 0 ? ' • ★ ' . number_format($rri['avg'], 1) : ''; ?></p>
                         </div>
                         <strong>₱<?php echo number_format((float)$rp['price'], 2); ?></strong>
                     </div>

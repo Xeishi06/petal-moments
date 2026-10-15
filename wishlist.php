@@ -22,6 +22,8 @@ $items = $pdo->prepare("
 ");
 $items->execute([':u' => $_SESSION['user_id']]);
 $favs = $items->fetchAll();
+$favSold = product_sold_counts(array_column($favs, 'id'));
+$favRatings = product_ratings(array_column($favs, 'id'));
 ?>
 <?php $pageTitle = 'My Favorites | Petal Moments'; include __DIR__ . '/includes/header.php'; ?>
 
@@ -46,7 +48,7 @@ $favs = $items->fetchAll();
                 <div class="product-details">
                     <div>
                         <h3><?php echo e($p['name']); ?></h3>
-                        <p><?php echo e($p['category_name'] ?? 'For any occasion'); ?></p>
+                        <p><?php echo e($p['category_name'] ?? 'For any occasion'); ?><?php echo ($favSold[(int)$p['id']] ?? 0) > 0 ? ' • 🔥 ' . (int)$favSold[(int)$p['id']] . ' sold' : ''; ?><?php $fri = $favRatings[(int)$p['id']] ?? ['avg' => 0, 'n' => 0]; echo $fri['n'] > 0 ? ' • ★ ' . number_format($fri['avg'], 1) : ''; ?></p>
                     </div>
                     <strong>₱<?php echo number_format((float)$p['price'], 2); ?></strong>
                 </div>

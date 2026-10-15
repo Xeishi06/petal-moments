@@ -176,3 +176,25 @@ function stars_html($avg)
     }
     return '<span class="stars" title="' . number_format((float)$avg, 1) . ' out of 5">' . $html . '</span>';
 }
+
+// Average rating + review count per product (approved only)
+function product_ratings($ids)
+{
+    $ids = array_map('intval', (array)$ids);
+    $ids = array_values(array_unique(array_filter($ids)));
+    if (empty($ids)) { return []; }
+    $in = implode(',', $ids);
+    $out = [];
+    foreach ($ids as $pid) { $out[$pid] = ['avg' => 0, 'n' => 0]; }
+    try {
+        foreach (db()->query("
+            SELECT product_id, COUNT(*) AS n, AVG(rating) AS avg
+            FROM reviews
+            WHERE status = 'approved' AND product_id IN ($in)
+            GROUP BY product_id
+        ")->fetchAll() as $r) {
+            $out[(int)$r['product_id']] = ['avg' => (float)$r['avg'], 'n' => (int)$r['n']];
+        }
+    } catch (Exception $e) { /* stats are best-effort */ }
+    return $out;
+}

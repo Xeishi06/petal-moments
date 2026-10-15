@@ -27,6 +27,7 @@ $stmt = db()->prepare($sql);
 $stmt->execute($params);
 $products = $stmt->fetchAll();
 $soldCounts = product_sold_counts(array_column($products, 'id'));
+$ratingInfo = product_ratings(array_column($products, 'id'));
 
 $allCats = db()->query("SELECT id, name, slug FROM categories WHERE is_active = 1 ORDER BY id")->fetchAll();
 $savedIds = [];
@@ -81,7 +82,7 @@ foreach ($allCats as $c) { if ($c['slug'] === $categorySlug) { $activeCatName = 
                 <div class="product-details">
                     <div>
                         <h3><?php echo e($p['name'] ?? 'Arrangement'); ?></h3>
-                        <p><?php echo e($p['category_name'] ?? 'For any occasion'); ?><?php echo ($soldCounts[(int)$p['id']] ?? 0) > 0 ? ' • 🔥 ' . (int)$soldCounts[(int)$p['id']] . ' sold' : ''; ?></p>
+                        <p><?php echo e($p['category_name'] ?? 'For any occasion'); ?><?php echo ($soldCounts[(int)$p['id']] ?? 0) > 0 ? ' • 🔥 ' . (int)$soldCounts[(int)$p['id']] . ' sold' : ''; ?><?php $ri = $ratingInfo[(int)$p['id']] ?? ['avg' => 0, 'n' => 0]; echo $ri['n'] > 0 ? ' • ★ ' . number_format($ri['avg'], 1) : ''; ?></p>
                     </div>
                     <strong>₱<?php echo number_format((float)($p['price'] ?? 0), 2); ?></strong>
                 </div>

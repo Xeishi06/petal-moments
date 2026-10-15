@@ -128,6 +128,7 @@ if (!empty($lines)) {
                 <table class="cart-table">
                     <thead>
                         <tr>
+                            <th></th>
                             <th>Product</th>
                             <th>Price</th>
                             <th>Quantity</th>
@@ -138,6 +139,7 @@ if (!empty($lines)) {
                     <tbody>
                         <?php foreach ($cartItems as $item): ?>
                         <tr>
+                            <td><img class="order-thumb" src="<?php echo e($item['image'] ?: 'https://images.unsplash.com/photo-1490750967868-88aa4486c946?auto=format&fit=crop&w=200&q=70'); ?>" alt=""></td>
                             <td>
                                 <a href="product.php?id=<?php echo (int)$item['id']; ?>"><?php echo e($item['name']); ?></a>
                                 <?php if ($item['variant'] !== '' && $item['variant'] !== 'Standard'): ?><br><small class="line-variant"><?php echo e($item['variant']); ?></small><?php endif; ?>
@@ -155,7 +157,7 @@ if (!empty($lines)) {
                     </tbody>
                     <tfoot>
                         <tr>
-                            <td colspan="3" class="right">Total</td>
+                            <td colspan="4" class="right">Total</td>
                             <td colspan="2">₱<?php echo number_format((float)$cartTotal, 2); ?></td>
                         </tr>
                     </tfoot>
