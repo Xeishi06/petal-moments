@@ -12,29 +12,44 @@ $shopGcash = '0917 123 4567 (Petal Moments)';
 
 // Buy Now mode: check out ONLY the buy-now item, cart stays saved
 $isBuyNow = (($_GET['mode'] ?? '') === 'buynow') && !empty($_SESSION['buy_now']);
-$source = $isBuyNow ? $_SESSION['buy_now'] : $_SESSION['cart'];
 $storeKey = $isBuyNow ? 'buy_now' : 'cart';
+$variants = cart_variants();
 
 $cartItems = [];
 $cartTotal = 0.0;
+$source = cart_lines($storeKey);
 if (!empty($source)) {
-    $ids = array_keys($source);
+    $ids = array_unique(array_map(function ($ln) { return $ln['pid']; }, $source));
     $in  = implode(',', array_map('intval', $ids));
-    $found = [];
+    $rows = [];
     foreach (db()->query("SELECT id, name, price, stock FROM products WHERE id IN ($in) AND is_active = 1")->fetchAll() as $r) {
-        $found[(int)$r['id']] = true;
-        $qty = max(1, (int)$source[$r['id']]);
+        $rows[(int)$r['id']] = $r;
+    }
+    $kept = [];
+    foreach ($source as $rk => $ln) {
+        if (!isset($rows[$ln['pid']])) { continue; }
+        $r = $rows[$ln['pid']];
+        $qty = max(1, $ln['qty']);
         if ((int)$r['stock'] > 0) { $qty = min($qty, (int)$r['stock']); }
-        $_SESSION[$storeKey][$r['id']] = $qty;
-        $subtotal = (float)$r['price'] * $qty;
+        $vid = isset($variants[$ln['vid']]) ? $ln['vid'] : 0;
+        $adj = $vid ? $variants[$vid]['adjust'] : 0;
+        $unit = (float)$r['price'] + $adj;
+        $subtotal = $unit * $qty;
         $cartTotal += $subtotal;
-        $cartItems[] = array_merge($r, ['quantity' => $qty, 'subtotal' => $subtotal]);
+        $cartItems[] = array_merge($r, [
+            'quantity' => $qty,
+            'variant' => $vid ? $variants[$vid]['name'] : '',
+            'dedication' => $ln['ded'],
+            'unit' => $unit,
+            'subtotal' => $subtotal,
+        ]);
+        $ln['qty'] = $qty;
+        $ln['vid'] = $vid;
+        $kept[$rk] = $ln;
     }
+    cart_save_lines($storeKey, $kept);
     // Drop items that were deactivated or deleted since being added
-    foreach (array_keys($source) as $sid) {
-        if (!isset($found[(int)$sid])) { unset($_SESSION[$storeKey][$sid]); }
-    }
-    if (count($found) < count($source)) {
+    if (count($kept) < count($source)) {
         flash('error', 'Some items are no longer available and were removed. Please review your order.');
         redirect($isBuyNow ? 'shop.php' : 'cart.php');
     }
@@ -119,9 +134,19 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 if (!$live || (int)$live['stock'] < (int)$item['quantity']) {
                     throw new Exception('Sorry, "' . $item['name'] . '" only has ' . (int)($live['stock'] ?? 0) . ' left in stock.');
                 }
-                $lineTotal = (float)$live['price'] * (int)$item['quantity'];
+                // Re-apply the live variant adjustment (admin may have changed it)
+                $vAdj = 0;
+                $vName = $item['variant'];
+                if ($vName !== '') {
+                    $vRow = $pdo->prepare("SELECT price_adjust FROM variants WHERE name = :n AND is_active = 1");
+                    $vRow->execute([':n' => $vName]);
+                    if ($vr = $vRow->fetch()) { $vAdj = (float)$vr['price_adjust']; }
+                    else { $vName = ''; }
+                }
+                $unitPrice = (float)$live['price'] + $vAdj;
+                $lineTotal = $unitPrice * (int)$item['quantity'];
                 $total += $lineTotal;
-                $lines[] = ['id' => $item['id'], 'qty' => (int)$item['quantity'], 'price' => (float)$live['price'], 'subtotal' => $lineTotal];
+                $lines[] = ['id' => $item['id'], 'qty' => (int)$item['quantity'], 'price' => $unitPrice, 'variant' => $vName, 'ded' => $item['dedication'], 'subtotal' => $lineTotal];
             }
             $stmt = $pdo->prepare("
                 INSERT INTO orders (user_id, total_amount, delivery_address, delivery_date, delivery_notes, payment_method, payment_ref, fulfillment, status)
@@ -140,8 +165,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $orderId = (int)$pdo->lastInsertId();
 
             $itemStmt = $pdo->prepare("
-                INSERT INTO order_items (order_id, product_id, quantity, unit_price, subtotal)
-                VALUES (:oid, :pid, :qty, :price, :sub)
+                INSERT INTO order_items (order_id, product_id, quantity, unit_price, variant_name, dedication, subtotal)
+                VALUES (:oid, :pid, :qty, :price, :variant, :ded, :sub)
             ");
             $decStmt = $pdo->prepare("UPDATE products SET stock = stock - :qty WHERE id = :pid");
             foreach ($lines as $ln) {
@@ -150,6 +175,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     ':pid' => $ln['id'],
                     ':qty' => $ln['qty'],
                     ':price' => $ln['price'],
+                    ':variant' => $ln['variant'] !== '' ? $ln['variant'] : null,
+                    ':ded' => $ln['ded'] !== '' ? $ln['ded'] : null,
                     ':sub' => $ln['subtotal'],
                 ]);
                 $decStmt->execute([':qty' => $ln['qty'], ':pid' => $ln['id']]);
@@ -316,7 +343,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 <h3>Order Summary</h3>
                 <?php foreach ($cartItems as $item): ?>
                     <div class="summary-line">
-                        <span><?php echo e($item['name']); ?> × <?php echo (int)$item['quantity']; ?></span>
+                        <span><?php echo e($item['name']); ?><?php echo ($item['variant'] !== '' && $item['variant'] !== 'Standard') ? ' (' . e($item['variant']) . ')' : ''; ?> × <?php echo (int)$item['quantity']; ?><?php echo $item['dedication'] !== '' ? ' ✎' : ''; ?></span>
                         <span>₱<?php echo number_format((float)$item['subtotal'], 2); ?></span>
                     </div>
                 <?php endforeach; ?>

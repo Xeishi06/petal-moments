@@ -4,65 +4,112 @@ start_session();
 
 $action = $_GET['action'] ?? $_POST['action'] ?? '';
 
-if (!isset($_SESSION['cart'])) {
-    $_SESSION['cart'] = [];
-}
+$variants = cart_variants();
 
 switch ($action) {
     case 'add':
         $productId = (int)($_POST['product_id'] ?? 0);
-        $quantity  = max(1, (int)($_POST['quantity'] ?? 1));
+        $quantity  = max(1, min(10, (int)($_POST['quantity'] ?? 1)));
+        $variantId = (int)($_POST['variant_id'] ?? 0);
+        $dedication = mb_substr(trim($_POST['dedication'] ?? ''), 0, 255);
+        if (!isset($variants[$variantId])) { $variantId = cart_default_variant(); }
         if ($productId > 0) {
+            $stmt = db()->prepare("SELECT id FROM products WHERE id = :id AND is_active = 1");
+            $stmt->execute([':id' => $productId]);
+            if (!$stmt->fetch()) {
+                flash('error', 'Product not found.');
+                redirect('shop.php');
+            }
+            if ($variants[$variantId]['needs_message'] && $dedication === '') {
+                flash('error', 'Please write your personalized message for the card.');
+                redirect('product.php?id=' . $productId);
+            }
             if (!empty($_POST['buy_now'])) {
                 // Buy Now: check out this item ONLY, leave the saved cart untouched
-                $_SESSION['buy_now'] = [$productId => $quantity];
+                $_SESSION['buy_now'] = ['buynow' => ['pid' => $productId, 'qty' => $quantity, 'vid' => $variantId, 'ded' => $dedication]];
                 redirect('checkout.php?mode=buynow');
             }
-            $_SESSION['cart'][$productId] = ($_SESSION['cart'][$productId] ?? 0) + $quantity;
+            $lines = cart_lines('cart');
+            $merged = false;
+            foreach ($lines as $rk => $ln) {
+                if ($ln['pid'] === $productId && $ln['vid'] === $variantId && $ln['ded'] === $dedication) {
+                    $lines[$rk]['qty'] = min(10, $ln['qty'] + $quantity);
+                    $merged = true;
+                    break;
+                }
+            }
+            if (!$merged) {
+                $lines['r' . substr(md5($productId . $variantId . $dedication . microtime(true)), 0, 10)] = [
+                    'pid' => $productId, 'qty' => $quantity, 'vid' => $variantId, 'ded' => $dedication,
+                ];
+            }
+            cart_save_lines('cart', $lines);
             flash('success', 'Item added to your cart.');
         }
         redirect('cart.php');
         break;
 
     case 'update':
-        foreach (($_POST['qty'] ?? []) as $pid => $qty) {
-            $q = max(0, (int)$qty);
+        $lines = cart_lines('cart');
+        foreach (($_POST['qty'] ?? []) as $rk => $qty) {
+            if (!isset($lines[$rk])) { continue; }
+            $q = max(0, min(10, (int)$qty));
             if ($q <= 0) {
-                unset($_SESSION['cart'][(int)$pid]);
+                unset($lines[$rk]);
             } else {
-                $_SESSION['cart'][(int)$pid] = $q;
+                $lines[$rk]['qty'] = $q;
             }
         }
+        cart_save_lines('cart', $lines);
         redirect('cart.php');
         break;
 
     case 'remove':
-        $pid = (int)($_GET['id'] ?? 0);
-        unset($_SESSION['cart'][$pid]);
+        $lines = cart_lines('cart');
+        unset($lines[$_GET['id'] ?? '']);
+        cart_save_lines('cart', $lines);
         redirect('cart.php');
         break;
 
     case 'clear':
-        $_SESSION['cart'] = [];
+        cart_save_lines('cart', []);
         redirect('cart.php');
         break;
 }
 
 $cartItems = [];
 $cartTotal = 0.0;
-if (!empty($_SESSION['cart'])) {
-    $ids = array_keys($_SESSION['cart']);
+$lines = cart_lines('cart');
+if (!empty($lines)) {
+    $ids = array_unique(array_map(function ($ln) { return $ln['pid']; }, $lines));
     $in  = implode(',', array_map('intval', $ids));
-    $rows = db()->query("SELECT id, name, price, image, stock FROM products WHERE id IN ($in)")->fetchAll();
-    foreach ($rows as $r) {
-        $qty = max(1, (int)$_SESSION['cart'][$r['id']]);
+    $rows = [];
+    foreach (db()->query("SELECT id, name, price, image, stock FROM products WHERE id IN ($in)")->fetchAll() as $r) {
+        $rows[(int)$r['id']] = $r;
+    }
+    $kept = [];
+    foreach ($lines as $rk => $ln) {
+        if (!isset($rows[$ln['pid']])) { continue; }
+        $r = $rows[$ln['pid']];
+        $qty = max(1, $ln['qty']);
         // Clamp to available stock so checkout never oversells
         if ((int)$r['stock'] > 0) { $qty = min($qty, (int)$r['stock']); }
-        $_SESSION['cart'][$r['id']] = $qty;
-        $subtotal = (float)$r['price'] * $qty;
+        $adj = isset($variants[$ln['vid']]) ? $variants[$ln['vid']]['adjust'] : 0;
+        $unit = (float)$r['price'] + $adj;
+        $subtotal = $unit * $qty;
         $cartTotal += $subtotal;
-        $cartItems[] = array_merge($r, ['quantity' => $qty, 'subtotal' => $subtotal]);
+        $cartItems[] = array_merge($r, [
+            'row' => $rk,
+            'quantity' => $qty,
+            'variant' => isset($variants[$ln['vid']]) ? $variants[$ln['vid']]['name'] : '',
+            'dedication' => $ln['ded'],
+            'unit' => $unit,
+            'subtotal' => $subtotal,
+        ]);
+        $ln['qty'] = $qty;
+        $kept[$rk] = $ln;
     }
+    cart_save_lines('cart', $kept);
 }
 ?>
 <?php $pageTitle = 'Your Cart | Petal Moments'; include __DIR__ . '/includes/header.php'; ?>
@@ -93,14 +140,16 @@ if (!empty($_SESSION['cart'])) {
                         <tr>
                             <td>
                                 <a href="product.php?id=<?php echo (int)$item['id']; ?>"><?php echo e($item['name']); ?></a>
+                                <?php if ($item['variant'] !== '' && $item['variant'] !== 'Standard'): ?><br><small class="line-variant"><?php echo e($item['variant']); ?></small><?php endif; ?>
+                                <?php if ($item['dedication'] !== ''): ?><br><small class="line-ded">✎ <?php echo e(mb_strimwidth($item['dedication'], 0, 60, '…')); ?></small><?php endif; ?>
                             </td>
-                            <td>₱<?php echo number_format((float)$item['price'], 2); ?></td>
+                            <td>₱<?php echo number_format((float)$item['unit'], 2); ?></td>
                             <td>
-                                <input type="number" name="qty[<?php echo (int)$item['id']; ?>]"
+                                <input type="number" name="qty[<?php echo e($item['row']); ?>]"
                                        value="<?php echo (int)$item['quantity']; ?>" min="0" max="<?php echo max(1,(int)$item['stock']); ?>">
                             </td>
                             <td>₱<?php echo number_format((float)$item['subtotal'], 2); ?></td>
-                            <td><a class="remove-link" href="cart.php?action=remove&id=<?php echo (int)$item['id']; ?>">Remove</a></td>
+                            <td><a class="remove-link" href="cart.php?action=remove&id=<?php echo e($item['row']); ?>">Remove</a></td>
                         </tr>
                         <?php endforeach; ?>
                     </tbody>

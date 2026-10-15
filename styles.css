@@ -1020,6 +1020,10 @@ a.floating-card:hover {
   gap: 20px;
 }
 
+@media (max-width: 1100px) {
+  .main-nav { gap: 16px; }
+  .main-nav a { font-size: 0.82rem; }
+}
 @media (max-width: 1020px) {
   .main-nav {
     gap: 18px;
@@ -1411,6 +1415,43 @@ a.floating-card:hover {
 
 .product-card-actions { margin-top: 14px; text-align: center; }
 .product-card-actions .btn { width: 100%; }
+.product-card-actions form { margin: 0; }
+/* Product customization */
+.variant-row { display: flex; flex-wrap: wrap; gap: 8px; margin: 2px 0 6px; }
+.variant-pill { margin: 0 !important; cursor: pointer; }
+.variant-pill input { position: absolute; opacity: 0; pointer-events: none; }
+.variant-pill span {
+  display: inline-block;
+  padding: 9px 16px;
+  border: 1.5px solid var(--border);
+  border-radius: 999px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--muted);
+  background: #fff;
+  transition: border-color 0.15s ease, background 0.15s ease, color 0.15s ease;
+}
+.variant-pill:hover span { border-color: var(--rose); }
+.variant-pill.picked span {
+  border-color: var(--rose);
+  background: #fdf3f1;
+  color: var(--rose-dark);
+  box-shadow: 0 0 0 3px rgba(183, 110, 121, 0.12);
+}
+.dedication-input {
+  width: 100%;
+  padding: 11px 13px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  font-size: 0.9rem;
+  margin-bottom: 4px;
+}
+.opt { font-weight: 400; color: var(--muted); font-size: 0.72rem; }
+.cross-sell { margin-top: 70px; }
+.cross-grid { grid-template-columns: repeat(4, 1fr); }
+@media (max-width: 1020px) {
+  .cross-grid { grid-template-columns: repeat(2, 1fr); }
+}
 
 .empty-state { text-align: center; color: var(--muted); padding: 50px 0; }
 .empty-state a { color: var(--rose-dark); font-weight: 600; }
@@ -1463,6 +1504,17 @@ a.floating-card:hover {
 .cart-table tfoot td { font-weight: 700; }
 .cart-table .right { text-align: right; }
 .cart-table input[type="number"] { width: 70px; padding: 8px; border: 1px solid var(--border); border-radius: 8px; }
+.line-variant {
+  display: inline-block;
+  margin-top: 4px;
+  padding: 2px 10px;
+  border-radius: 999px;
+  background: #fdf3f1;
+  color: var(--rose-dark);
+  font-size: 0.72rem;
+  font-weight: 700;
+}
+.line-ded { color: var(--muted); font-style: italic; }
 .remove-link { color: #b34f4f; font-size: 0.82rem; }
 .cart-actions { display: flex; gap: 12px; flex-wrap: wrap; margin-top: 26px; }
 .cart-actions .btn { margin-top: 0; }

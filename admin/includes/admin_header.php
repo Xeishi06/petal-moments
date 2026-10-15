@@ -8,6 +8,7 @@ $adminTitle = $adminTitle ?? 'Admin | Petal Moments';
 $navLabels = [
     'dashboard'   => 'Dashboard',
     'products'    => 'Products',
+    'variants'    => 'Variants',
     'categories'  => 'Categories',
     'orders'      => 'Orders',
     'users'       => 'Users',
@@ -16,6 +17,16 @@ $navLabels = [
     'subscribers' => 'Subscribers',
 ];
 $crumbLabel = $navLabels[$active ?? ''] ?? 'Admin Panel';
+
+// Live notification counts for sidebar badges
+$navCounts = ['orders' => 0, 'inquiries' => 0, 'messages' => 0, 'lowstock' => 0];
+try {
+    $navDb = db();
+    $navCounts['orders']    = (int)$navDb->query("SELECT COUNT(*) FROM orders WHERE status = 'pending'")->fetchColumn();
+    $navCounts['inquiries'] = (int)$navDb->query("SELECT COUNT(*) FROM event_inquiries WHERE status = 'pending'")->fetchColumn();
+    $navCounts['messages']  = (int)$navDb->query("SELECT COUNT(*) FROM contact_messages WHERE status = 'new'")->fetchColumn();
+    $navCounts['lowstock']  = (int)$navDb->query("SELECT COUNT(*) FROM products WHERE is_active = 1 AND stock <= 5")->fetchColumn();
+} catch (Exception $e) { /* badges stay hidden */ }
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -49,14 +60,20 @@ $crumbLabel = $navLabels[$active ?? ''] ?? 'Admin Panel';
             <a href="products.php" class="<?php echo ($active ?? '') === 'products' ? 'active' : ''; ?>">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 8 12 3 3 8v8l9 5 9-5V8Z"/><path d="M3 8l9 5 9-5"/><path d="M12 13v8"/></svg>
                 Products
+                <?php if ($navCounts['lowstock'] > 0): ?><span class="nav-badge warn" title="<?php echo (int)$navCounts['lowstock']; ?> products low on stock"><?php echo (int)$navCounts['lowstock']; ?></span><?php endif; ?>
             </a>
             <a href="categories.php" class="<?php echo ($active ?? '') === 'categories' ? 'active' : ''; ?>">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20.6 13.4 12 22l-9-9V3h10l7.6 7.6a2 2 0 0 1 0 2.8Z"/><circle cx="7.5" cy="7.5" r=".5"/></svg>
                 Categories
             </a>
+            <a href="variants.php" class="<?php echo ($active ?? '') === 'variants' ? 'active' : ''; ?>">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v3M12 18v3M3 12h3M18 12h3"/><circle cx="12" cy="12" r="4"/></svg>
+                Variants
+            </a>
             <a href="orders.php" class="<?php echo ($active ?? '') === 'orders' ? 'active' : ''; ?>">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 2h12v20l-3-2-3 2-3-2-3 2V2Z"/><path d="M9 7h6"/><path d="M9 11h6"/></svg>
                 Orders
+                <?php if ($navCounts['orders'] > 0): ?><span class="nav-badge" title="<?php echo (int)$navCounts['orders']; ?> pending orders"><?php echo (int)$navCounts['orders']; ?></span><?php endif; ?>
             </a>
             <a href="users.php" class="<?php echo ($active ?? '') === 'users' ? 'active' : ''; ?>">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="8" r="3.5"/><path d="M2.5 20c.5-3.5 3.2-5.5 6.5-5.5s6 2 6.5 5.5"/><circle cx="17.5" cy="9.5" r="2.5"/><path d="M16 14.6c2.6.3 4.5 2 5 4.9"/></svg>
@@ -65,10 +82,12 @@ $crumbLabel = $navLabels[$active ?? ''] ?? 'Admin Panel';
             <a href="inquiries.php" class="<?php echo ($active ?? '') === 'inquiries' ? 'active' : ''; ?>">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="14" rx="3"/><path d="m3 7 9 6 9-6"/></svg>
                 Event Inquiries
+                <?php if ($navCounts['inquiries'] > 0): ?><span class="nav-badge" title="<?php echo (int)$navCounts['inquiries']; ?> pending inquiries"><?php echo (int)$navCounts['inquiries']; ?></span><?php endif; ?>
             </a>
             <a href="messages.php" class="<?php echo ($active ?? '') === 'messages' ? 'active' : ''; ?>">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4h16v12H9l-5 4V4Z"/><path d="M8 9h8"/><path d="M8 12h5"/></svg>
                 Messages
+                <?php if ($navCounts['messages'] > 0): ?><span class="nav-badge" title="<?php echo (int)$navCounts['messages']; ?> unread messages"><?php echo (int)$navCounts['messages']; ?></span><?php endif; ?>
             </a>
             <a href="subscribers.php" class="<?php echo ($active ?? '') === 'subscribers' ? 'active' : ''; ?>">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4h16v12H9l-5 4V4Z"/><path d="M8 9h8"/><path d="M8 12h5"/></svg>

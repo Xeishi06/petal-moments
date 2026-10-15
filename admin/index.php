@@ -15,6 +15,26 @@ $recentOrders = db()->query("
     FROM orders o JOIN users u ON u.id = o.user_id
     ORDER BY o.created_at DESC LIMIT 6
 ")->fetchAll();
+
+// Low stock alert (threshold: 5 and below)
+$lowStock = db()->query("
+    SELECT id, name, stock FROM products
+    WHERE is_active = 1 AND stock <= 5
+    ORDER BY stock ASC, name ASC LIMIT 8
+")->fetchAll();
+$lowStockCount = (int)db()->query("SELECT COUNT(*) FROM products WHERE is_active = 1 AND stock <= 5")->fetchColumn();
+
+// Sales overview: last 30 days (excluding cancelled)
+$revenue30  = db()->query("SELECT COALESCE(SUM(total_amount),0) FROM orders WHERE status != 'cancelled' AND created_at >= DATE_SUB(NOW(), INTERVAL 30 DAY)")->fetchColumn();
+$orders30   = db()->query("SELECT COUNT(*) FROM orders WHERE created_at >= DATE_SUB(NOW(), INTERVAL 30 DAY)")->fetchColumn();
+$topProducts = db()->query("
+    SELECT p.id, p.name, SUM(oi.quantity) AS sold, SUM(oi.subtotal) AS revenue
+    FROM order_items oi
+    JOIN orders o ON o.id = oi.order_id AND o.status != 'cancelled'
+    JOIN products p ON p.id = oi.product_id
+    GROUP BY p.id, p.name
+    ORDER BY sold DESC LIMIT 5
+")->fetchAll();
 ?>
 
 <div class="admin-card">
@@ -23,10 +43,10 @@ $recentOrders = db()->query("
 </div>
 
 <div class="stat-grid">
-    <a class="stat-card stat-sage" href="products.php"><span>Total Products</span><strong><?php echo (int)$totalProducts; ?></strong><small>Manage →</small></a>
+    <a class="stat-card stat-sage" href="products.php"><span>Total Products</span><strong><?php echo (int)$totalProducts; ?></strong><small>Manage →</small><?php if ($lowStockCount > 0): ?><span class="stat-badge warn" title="<?php echo $lowStockCount; ?> low stock items"><?php echo $lowStockCount; ?></span><?php endif; ?></a>
     <a class="stat-card stat-blue" href="orders.php"><span>Total Orders</span><strong><?php echo (int)$totalOrders; ?></strong><small>View all →</small></a>
-    <a class="stat-card stat-gold" href="orders.php"><span>Pending Orders</span><strong><?php echo (int)$pendingOrders; ?></strong><small>Review →</small></a>
-    <a class="stat-card stat-rose" href="inquiries.php"><span>Pending Inquiries</span><strong><?php echo (int)$pendingInquiries; ?></strong><small>Review →</small></a>
+    <a class="stat-card stat-gold" href="orders.php"><span>Pending Orders</span><strong><?php echo (int)$pendingOrders; ?></strong><small>Review →</small><?php if ((int)$pendingOrders > 0): ?><span class="stat-badge" title="Needs attention"><?php echo (int)$pendingOrders; ?></span><?php endif; ?></a>
+    <a class="stat-card stat-rose" href="inquiries.php"><span>Pending Inquiries</span><strong><?php echo (int)$pendingInquiries; ?></strong><small>Review →</small><?php if ((int)$pendingInquiries > 0): ?><span class="stat-badge" title="Needs attention"><?php echo (int)$pendingInquiries; ?></span><?php endif; ?></a>
     <a class="stat-card stat-rose" href="orders.php"><span>Total Revenue</span><strong>₱<?php echo number_format((float)$totalRevenue, 2); ?></strong><small>View orders →</small></a>
     <a class="stat-card stat-blue" href="users.php"><span>Customers</span><strong><?php echo (int)$totalUsers; ?></strong><small>Manage →</small></a>
 </div>
@@ -54,6 +74,58 @@ $recentOrders = db()->query("
         <?php endif; ?>
         </tbody>
     </table>
+    </div>
+</div>
+
+<div class="dash-grid">
+    <div class="admin-card">
+        <h2>⚠ Low Stock Alert</h2>
+        <?php if (empty($lowStock)): ?>
+            <p class="stock-ok">✔ All active products are well stocked.</p>
+        <?php else: ?>
+            <p><?php echo count($lowStock); ?> product(s) at 5 or below — restock soon.</p>
+            <div class="table-scroll">
+            <table class="admin-table">
+                <thead><tr><th>Product</th><th>Left</th><th></th></tr></thead>
+                <tbody>
+                <?php foreach ($lowStock as $ls): ?>
+                    <tr>
+                        <td><strong><?php echo e($ls['name']); ?></strong> <small>#<?php echo (int)$ls['id']; ?></small></td>
+                        <td><span class="chip <?php echo (int)$ls['stock'] === 0 ? 'chip-out' : 'chip-yes'; ?>"><?php echo (int)$ls['stock']; ?> left</span></td>
+                        <td><a class="btn btn-ghost btn-sm" href="products.php?edit=<?php echo (int)$ls['id']; ?>">Restock</a></td>
+                    </tr>
+                <?php endforeach; ?>
+                </tbody>
+            </table>
+            </div>
+        <?php endif; ?>
+    </div>
+
+    <div class="admin-card">
+        <h2>📈 Sales — Last 30 Days</h2>
+        <div class="mini-stats">
+            <div><span>Revenue</span><strong>₱<?php echo number_format((float)$revenue30, 2); ?></strong></div>
+            <div><span>Orders</span><strong><?php echo (int)$orders30; ?></strong></div>
+        </div>
+        <h3 class="sub-h">Top products</h3>
+        <?php if (empty($topProducts)): ?>
+            <p class="empty-note">No sales yet — top sellers will appear here.</p>
+        <?php else: ?>
+            <div class="table-scroll">
+            <table class="admin-table">
+                <thead><tr><th>#</th><th>Sold</th><th>Revenue</th></tr></thead>
+                <tbody>
+                <?php $rank = 1; foreach ($topProducts as $tp): ?>
+                    <tr>
+                        <td><?php echo $rank++; ?>. <strong><?php echo e($tp['name']); ?></strong></td>
+                        <td><?php echo (int)$tp['sold']; ?></td>
+                        <td>₱<?php echo number_format((float)$tp['revenue'], 2); ?></td>
+                    </tr>
+                <?php endforeach; ?>
+                </tbody>
+            </table>
+            </div>
+        <?php endif; ?>
     </div>
 </div>
 

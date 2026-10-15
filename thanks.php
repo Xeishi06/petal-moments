@@ -41,7 +41,7 @@ $items = $items->fetchAll();
                 <tbody>
                 <?php foreach ($items as $item): ?>
                     <tr>
-                        <td><?php echo e($item['name'] ?? 'Arrangement'); ?></td>
+                        <td><?php echo e($item['name'] ?? 'Arrangement'); ?><?php echo (!empty($item['variant_name']) && $item['variant_name'] !== 'Standard') ? ' (' . e($item['variant_name']) . ')' : ''; ?><?php echo !empty($item['dedication']) ? '<br><small>✎ ' . e($item['dedication']) . '</small>' : ''; ?></td>
                         <td><?php echo (int)$item['quantity']; ?></td>
                         <td>₱<?php echo number_format((float)$item['unit_price'], 2); ?></td>
                         <td>₱<?php echo number_format((float)$item['subtotal'], 2); ?></td>

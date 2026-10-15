@@ -75,7 +75,7 @@ $history = $history->fetchAll();
                     <tbody>
                     <?php foreach ($items as $item): ?>
                         <tr>
-                            <td><a href="product.php?id=<?php echo (int)$item['product_id']; ?>"><?php echo e($item['name'] ?? 'Arrangement'); ?></a></td>
+                            <td><a href="product.php?id=<?php echo (int)$item['product_id']; ?>"><?php echo e($item['name'] ?? 'Arrangement'); ?></a><?php echo (!empty($item['variant_name']) && $item['variant_name'] !== 'Standard') ? ' (' . e($item['variant_name']) . ')' : ''; ?><?php echo !empty($item['dedication']) ? '<br><small>✎ ' . e($item['dedication']) . '</small>' : ''; ?></td>
                             <td><?php echo (int)$item['quantity']; ?></td>
                             <td>₱<?php echo number_format((float)$item['unit_price'], 2); ?></td>
                             <td>₱<?php echo number_format((float)$item['subtotal'], 2); ?></td>

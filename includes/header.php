@@ -45,6 +45,7 @@ $active    = $active ?? '';
         <nav class="main-nav" id="mainNav">
             <a href="index.php#top">Home</a>
             <a href="index.php#shop">Shop</a>
+            <a href="index.php#bestsellers">Best Sellers</a>
             <a href="index.php#events">Events</a>
             <a href="index.php#about">About</a>
             <a href="index.php#how">How It Works</a>

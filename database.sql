@@ -92,6 +92,8 @@ CREATE TABLE order_items (
   product_id  INT UNSIGNED   NOT NULL,
   quantity    INT            NOT NULL DEFAULT 1,
   unit_price  DECIMAL(10,2)  NOT NULL DEFAULT 0.00,
+  variant_name VARCHAR(80)   NULL,
+  dedication  VARCHAR(255)   NULL,
   subtotal    DECIMAL(10,2)  NOT NULL DEFAULT 0.00,
   CONSTRAINT fk_items_order
     FOREIGN KEY (order_id) REFERENCES orders(id)
@@ -161,6 +163,18 @@ CREATE TABLE event_inquiries (
 ) ENGINE=InnoDB;
 
 -- ------------------------------------------------------------
+-- VARIANTS (global flower customization presets)
+-- ------------------------------------------------------------
+DROP TABLE IF EXISTS variants;
+CREATE TABLE variants (
+  id             INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  name           VARCHAR(60)  NOT NULL UNIQUE,
+  price_adjust   DECIMAL(10,2) NOT NULL DEFAULT 0.00,
+  needs_message  TINYINT(1)   NOT NULL DEFAULT 0,
+  is_active      TINYINT(1)   NOT NULL DEFAULT 1
+) ENGINE=InnoDB;
+
+-- ------------------------------------------------------------
 -- CONTACT MESSAGES (contact form inbox)
 -- ------------------------------------------------------------
 DROP TABLE IF EXISTS contact_messages;
@@ -208,7 +222,8 @@ INSERT INTO categories (name, slug, description, image) VALUES
 ('Birthday',   'birthday',  'Bright and joyful arrangements for birthdays.', 'https://www.avlci.com/wp-content/uploads/2023/11/386793877_817737667024693_8748246655558808406_n-768x1024.jpg'),
 ('Weddings',   'weddings',  'Sweet and timeless blooms for your big day.', 'https://images.unsplash.com/photo-1523438885200-e635ba2c371e?auto=format&fit=crop&w=700&q=80'),
 ('Bouquet',    'bouquet',   'Classic hand-tied bouquets for any occasion.', 'https://images.unsplash.com/photo-1781925516902-7d2e9e8cbaea?q=80&w=736&auto=format&fit=crop'),
-('Funeral',    'funeral',   'Gentle and meaningful arrangements of sympathy.', 'https://images.unsplash.com/photo-1487070183336-b863922373d4?auto=format&fit=crop&w=700&q=80');
+('Funeral',    'funeral',   'Gentle and meaningful arrangements of sympathy.', 'https://images.unsplash.com/photo-1487070183336-b863922373d4?auto=format&fit=crop&w=700&q=80'),
+('Gifts & Add-ons', 'gifts', 'Chocolates, balloons, cakes and little extras to complete your gift.', 'https://images.unsplash.com/photo-1549007994-cb92caebd54b?auto=format&fit=crop&w=700&q=80');
 
 -- Products
 INSERT INTO products (category_id, name, slug, description, price, image, stock, is_featured) VALUES
@@ -231,6 +246,21 @@ INSERT INTO products (category_id, name, slug, description, price, image, stock,
 (4, 'Gentle Sympathy', 'gentle-sympathy', 'Placeholder arrangement - admin will update.', 1099.00, 'https://images.unsplash.com/photo-1457089328109-e5d9bd499191?auto=format&fit=crop&w=800&q=80', 50, 0),
 (4, 'Peaceful Farewell', 'peaceful-farewell', 'Placeholder arrangement - admin will update.', 1299.00, 'https://images.unsplash.com/photo-1469259943454-aa100abba749?auto=format&fit=crop&w=800&q=80', 50, 0),
 (4, 'Eternal Rest', 'eternal-rest', 'Placeholder arrangement - admin will update.', 1399.00, 'https://images.unsplash.com/photo-1562690868-60bbe7293e94?auto=format&fit=crop&w=800&q=80', 50, 0);
+
+-- Gifts & add-ons (category id 5 on a fresh install)
+INSERT INTO products (category_id, name, slug, description, price, image, stock, is_featured) VALUES
+(5, 'Chocolate Truffle Box', 'chocolate-truffle-box', 'A box of premium chocolate truffles - the perfect pair for any bouquet.', 499.00, 'https://images.unsplash.com/photo-1549007994-cb92caebd54b?auto=format&fit=crop&w=800&q=80', 50, 0),
+(5, 'Happy Birthday Balloon Set', 'birthday-balloon-set', 'Festive birthday balloons to make the celebration pop.', 199.00, 'https://images.unsplash.com/photo-1530103862676-de8c9debad1d?auto=format&fit=crop&w=800&q=80', 50, 0),
+(5, 'Mini Birthday Cake', 'mini-birthday-cake', 'A cute mini cake to go with your flowers.', 899.00, 'https://images.unsplash.com/photo-1578985545062-69928b1d9587?auto=format&fit=crop&w=800&q=80', 50, 0),
+(5, 'Premium Chocolate Collection', 'premium-chocolate-collection', 'An indulgent chocolate collection for someone sweet.', 799.00, 'https://images.unsplash.com/photo-1511381939415-e44015466834?auto=format&fit=crop&w=800&q=80', 50, 0);
+
+-- Variant presets (global customization options)
+INSERT INTO variants (name, price_adjust, needs_message) VALUES
+('Standard', 0, 0),
+('Deluxe', 300, 0),
+('Happy Birthday!', 150, 0),
+('I Love You!', 150, 0),
+('Personalized Message', 200, 1);
 
 -- Newsletter sample subscribers
 INSERT INTO newsletter_subscribers (email) VALUES

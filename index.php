@@ -128,7 +128,7 @@ if (is_logged_in()) {
             </div>
         </section>
 
-        <section class="section featured">
+        <section class="section featured" id="bestsellers">
             <div class="container">
 
                 <div class="section-top">
