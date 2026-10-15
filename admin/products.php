@@ -185,12 +185,24 @@ $adminTitle = 'Products | Petal Moments Admin';
 include __DIR__ . '/includes/admin_header.php';
 
 $categories = $pdo->query("SELECT * FROM categories ORDER BY name")->fetchAll();
-$products = $pdo->query("
-    SELECT p.*, c.name AS category_name
-    FROM products p LEFT JOIN categories c ON c.id = p.category_id
-    WHERE p.is_addon = 0
-    ORDER BY p.id DESC
-")->fetchAll();
+$pq = trim($_GET['pq'] ?? '');
+if ($pq !== '') {
+    $pstmt = $pdo->prepare("
+        SELECT p.*, c.name AS category_name
+        FROM products p LEFT JOIN categories c ON c.id = p.category_id
+        WHERE p.is_addon = 0 AND p.name LIKE :q
+        ORDER BY p.id DESC
+    ");
+    $pstmt->execute([':q' => '%' . $pq . '%']);
+    $products = $pstmt->fetchAll();
+} else {
+    $products = $pdo->query("
+        SELECT p.*, c.name AS category_name
+        FROM products p LEFT JOIN categories c ON c.id = p.category_id
+        WHERE p.is_addon = 0
+        ORDER BY p.id DESC
+    ")->fetchAll();
+}
 
 $editing = null;
 $galleryEdit = [];
@@ -311,7 +323,13 @@ $heroIds = array_map('intval', array_column(
 </div>
 
 <div class="admin-card">
-    <div class="table-scroll" style="margin-top:0;">
+    <form method="get" action="products.php" class="filter-row">
+        <input type="text" name="pq" value="<?php echo e($pq); ?>" placeholder="Search flowers by name...">
+        <button type="submit" class="btn btn-dark btn-sm">Search</button>
+        <?php if ($pq !== ''): ?><a class="btn btn-light btn-sm" href="products.php">Clear</a><?php endif; ?>
+    </form>
+    <p class="result-count" style="text-align:left;margin:10px 0 0;"><?php echo count($products); ?> flower(s) found.</p>
+    <div class="table-scroll" style="margin-top:12px;">
     <table class="admin-table">
         <thead>
             <tr><th>Product</th><th>Category</th><th>Price</th><th>Stock</th><th>Featured</th><th>Actions</th></tr>

@@ -63,6 +63,9 @@ $toReview = array_map(function ($t) {
                 <?php endforeach; ?>
                 </tbody>
                 <tfoot>
+                    <?php if (!empty($order['delivery_fee']) && (float)$order['delivery_fee'] > 0): ?>
+                    <tr><td colspan="4" class="right">Delivery fee</td><td>₱<?php echo number_format((float)$order['delivery_fee'], 2); ?></td></tr>
+                    <?php endif; ?>
                     <tr><td colspan="4" class="right">Total</td><td>₱<?php echo number_format((float)$order['total_amount'], 2); ?></td></tr>
                 </tfoot>
             </table>

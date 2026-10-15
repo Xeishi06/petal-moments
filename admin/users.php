@@ -1,34 +1,40 @@
 <?php
-$active = 'users';
-$adminTitle = 'Users | Petal Moments Admin';
-include __DIR__ . '/includes/admin_header.php';
+require_once __DIR__ . '/../config/functions.php';
+start_session();
+require_admin();
 
 $pdo = db();
 
-if (isset($_GET['toggle'])) {
-    $id = (int)$_GET['toggle'];
-    $pdo->prepare("UPDATE users SET is_active = 1 - is_active WHERE id=:id")->execute([':id'=>$id]);
-    flash('success', 'User status updated.');
-    redirect('users.php');
-}
-
-if (isset($_GET['role'])) {
-    $id = (int)$_GET['role'];
-    $pdo->prepare("UPDATE users SET role = IF(role='admin','customer','admin') WHERE id=:id")->execute([':id'=>$id]);
-    flash('success', 'User role updated.');
-    redirect('users.php');
-}
-
-if (isset($_GET['delete'])) {
-    $id = (int)$_GET['delete'];
-    if ($id == $_SESSION['user_id']) {
-        flash('error', 'You cannot delete your own account.');
-    } else {
-        $pdo->prepare("DELETE FROM users WHERE id=:id")->execute([':id'=>$id]);
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['form'] ?? '') === 'user_action') {
+    if (!verify_csrf($_POST['csrf'] ?? '')) {
+        flash('error', 'Session expired. Please try again.');
+        redirect('users.php');
+    }
+    $id = (int)($_POST['user_id'] ?? 0);
+    $do = $_POST['do'] ?? '';
+    $target = $pdo->prepare("SELECT * FROM users WHERE id = :id");
+    $target->execute([':id' => $id]);
+    $target = $target->fetch();
+    if (!$target) {
+        flash('error', 'User not found.');
+    } elseif ($id === (int)$_SESSION['user_id'] && in_array($do, ['toggle', 'role', 'delete'], true)) {
+        flash('error', 'You cannot change your own account from here. Ask another admin.');
+    } elseif ($do === 'toggle') {
+        $pdo->prepare("UPDATE users SET is_active = 1 - is_active WHERE id = :id")->execute([':id' => $id]);
+        flash('success', 'User status updated.');
+    } elseif ($do === 'role') {
+        $pdo->prepare("UPDATE users SET role = IF(role = 'admin', 'customer', 'admin') WHERE id = :id")->execute([':id' => $id]);
+        flash('success', 'User role updated.');
+    } elseif ($do === 'delete') {
+        $pdo->prepare("DELETE FROM users WHERE id = :id")->execute([':id' => $id]);
         flash('success', 'User deleted.');
     }
     redirect('users.php');
 }
+
+$active = 'users';
+$adminTitle = 'Users | Petal Moments Admin';
+include __DIR__ . '/includes/admin_header.php';
 
 $users = $pdo->query("
     SELECT u.*,
@@ -47,13 +53,14 @@ $users = $pdo->query("
         </thead>
         <tbody>
         <?php foreach ($users as $u): ?>
+            <?php $isSelf = ((int)$u['id'] === (int)$_SESSION['user_id']); ?>
             <tr>
                 <td>
                     <div class="cell-with-thumb">
-                        <span class="avatar avatar-sm <?php echo $u['role'] === 'admin' ? '' : 'avatar-sage'; ?>"><?php echo $u['role'] === 'admin' ? 'A' : 'C'; ?></span>
+                        <span class="avatar avatar-sm <?php echo $u['role'] === 'admin' ? '' : 'avatar-sage'; ?>"><?php echo e(mb_strtoupper(mb_substr(trim($u['first_name'] . ' ' . $u['last_name']) ?: $u['email'], 0, 1))); ?></span>
                         <div>
-                            <strong><?php echo $u['role'] === 'admin' ? 'Admin' : ('Customer ' . (int)$u['id']); ?></strong>
-                            <small><?php echo e($u['email']); ?></small>
+                            <strong><?php echo e(trim($u['first_name'] . ' ' . $u['last_name'])); ?></strong>
+                            <small><?php echo e($u['email']); ?><?php echo $isSelf ? ' • you' : ''; ?></small>
                         </div>
                     </div>
                 </td>
@@ -61,12 +68,33 @@ $users = $pdo->query("
                 <td><?php echo (int)$u['order_count']; ?></td>
                 <td><span class="chip <?php echo $u['is_active'] ? 'chip-in' : 'chip-out'; ?>"><?php echo $u['is_active'] ? 'Active' : 'Disabled'; ?></span></td>
                 <td>
+                    <?php if ($isSelf): ?>
+                        <span class="link-soft">Your account</span>
+                    <?php else: ?>
                     <div class="cell-actions">
-                        <a class="btn btn-ghost btn-sm" href="users.php?toggle=<?php echo (int)$u['id']; ?>"><?php echo $u['is_active'] ? 'Disable' : 'Enable'; ?></a>
-                        <?php if ($u['role'] === 'admin'): ?><a class="link-soft" href="users.php?role=<?php echo (int)$u['id']; ?>">Make customer</a><?php else: ?><a class="link-soft" href="users.php?role=<?php echo (int)$u['id']; ?>">Make admin</a><?php endif; ?>
-                        <?php if ($u['id'] != $_SESSION['user_id']): ?>
-                        <a class="link-danger" href="users.php?delete=<?php echo (int)$u['id']; ?>" onclick="return confirm('Delete this user and their orders?');">Delete</a><?php endif; ?>
+                        <form method="post" action="users.php" style="display:inline;">
+                            <input type="hidden" name="form" value="user_action">
+                            <input type="hidden" name="csrf" value="<?php echo e(csrf_token()); ?>">
+                            <input type="hidden" name="user_id" value="<?php echo (int)$u['id']; ?>">
+                            <input type="hidden" name="do" value="toggle">
+                            <button type="submit" class="btn btn-ghost btn-sm"><?php echo $u['is_active'] ? 'Disable' : 'Enable'; ?></button>
+                        </form>
+                        <form method="post" action="users.php" style="display:inline;" onsubmit="return confirm('Change this user\u2019s role?');">
+                            <input type="hidden" name="form" value="user_action">
+                            <input type="hidden" name="csrf" value="<?php echo e(csrf_token()); ?>">
+                            <input type="hidden" name="user_id" value="<?php echo (int)$u['id']; ?>">
+                            <input type="hidden" name="do" value="role">
+                            <button type="submit" class="link-soft" style="border:0;background:none;cursor:pointer;"><?php echo $u['role'] === 'admin' ? 'Make customer' : 'Make admin'; ?></button>
+                        </form>
+                        <form method="post" action="users.php" style="display:inline;" onsubmit="return confirm('Delete this user and their orders?');">
+                            <input type="hidden" name="form" value="user_action">
+                            <input type="hidden" name="csrf" value="<?php echo e(csrf_token()); ?>">
+                            <input type="hidden" name="user_id" value="<?php echo (int)$u['id']; ?>">
+                            <input type="hidden" name="do" value="delete">
+                            <button type="submit" class="link-danger" style="border:0;background:none;cursor:pointer;">Delete</button>
+                        </form>
                     </div>
+                    <?php endif; ?>
                 </td>
             </tr>
         <?php endforeach; ?>

@@ -5,6 +5,32 @@ require_admin();
 
 $pdo = db();
 
+if (isset($_GET['export']) && $_GET['export'] === 'csv') {
+    $rows = $pdo->query("
+        SELECT o.id, o.created_at, o.status, o.total_amount, o.fulfillment,
+               o.delivery_address, o.delivery_date, o.payment_method, o.payment_ref,
+               u.first_name, u.last_name, u.email,
+               (SELECT GROUP_CONCAT(CONCAT(p.name, ' x', oi.quantity) SEPARATOR '; ')
+                FROM order_items oi LEFT JOIN products p ON p.id = oi.product_id
+                WHERE oi.order_id = o.id) AS items
+        FROM orders o JOIN users u ON u.id = o.user_id
+        ORDER BY o.created_at DESC
+    ")->fetchAll();
+    header('Content-Type: text/csv; charset=utf-8');
+    header('Content-Disposition: attachment; filename="petal-moments-orders-' . date('Y-m-d') . '.csv"');
+    $out = fopen('php://output', 'w');
+    fputcsv($out, ['Order #', 'Date', 'Status', 'Total', 'Fulfillment', 'Address', 'Delivery date', 'Payment', 'GCash ref', 'Customer', 'Email', 'Items']);
+    foreach ($rows as $r) {
+        fputcsv($out, [
+            $r['id'], $r['created_at'], $r['status'], $r['total_amount'], $r['fulfillment'],
+            $r['delivery_address'], $r['delivery_date'], $r['payment_method'], $r['payment_ref'],
+            trim(($r['first_name'] ?? '') . ' ' . ($r['last_name'] ?? '')), $r['email'], $r['items'],
+        ]);
+    }
+    fclose($out);
+    exit;
+}
+
 $fStatus = $_GET['status'] ?? $_POST['fstatus'] ?? 'all';
 if (!in_array($fStatus, ['all', 'pending', 'processing', 'delivered', 'cancelled'], true)) { $fStatus = 'all'; }
 $fSearch = trim($_GET['q'] ?? $_POST['fq'] ?? '');
@@ -60,7 +86,7 @@ $oq->execute($params);
 $orders = $oq->fetchAll();
 ?>
 
-<div class="admin-card"><h1>Orders</h1><p>Manage and update the status of customer orders.</p></div>
+<div class="admin-card"><h1>Orders</h1><p>Manage and update the status of customer orders. <a class="btn btn-dark btn-sm" href="orders.php?export=csv">⬇ Export CSV</a></p></div>
 
 <div class="admin-card">
     <form method="get" action="orders.php" class="filter-row">

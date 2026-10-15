@@ -27,6 +27,16 @@ try {
 } catch (Exception $e) { /* suggestions are best-effort */ }
 $defaultAddr = $addrOptions[0] ?? '';
 
+// Delivery fee rules (admin Settings; pickup is always free)
+$feeFlat = max(0, (float)setting('delivery_fee', 0));
+$feeFreeMin = max(0, (float)setting('free_delivery_min', 0));
+function quote_fee($subtotal, $isPickup, $flat, $freeMin)
+{
+    if ($isPickup || $flat <= 0) { return 0.0; }
+    if ($freeMin > 0 && $subtotal >= $freeMin) { return 0.0; }
+    return $flat;
+}
+
 // Buy Now mode: check out ONLY the buy-now item, cart stays saved
 $isBuyNow = (($_GET['mode'] ?? '') === 'buynow') && !empty($_SESSION['buy_now']);
 $storeKey = $isBuyNow ? 'buy_now' : 'cart';
@@ -165,13 +175,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $total += $lineTotal;
                 $lines[] = ['id' => $item['id'], 'qty' => (int)$item['quantity'], 'price' => $unitPrice, 'variant' => $vName, 'ded' => $item['dedication'], 'subtotal' => $lineTotal];
             }
+            $orderFee = quote_fee($total, $fulfillment === 'pickup', (float)setting('delivery_fee', 0), (float)setting('free_delivery_min', 0));
+            $grandTotal = $total + $orderFee;
             $stmt = $pdo->prepare("
-                INSERT INTO orders (user_id, total_amount, delivery_address, delivery_date, delivery_notes, payment_method, payment_ref, fulfillment, status)
-                VALUES (:user, :total, :address, :date, :notes, :method, :ref, :fulfill, 'pending')
+                INSERT INTO orders (user_id, total_amount, delivery_fee, delivery_address, delivery_date, delivery_notes, payment_method, payment_ref, fulfillment, status)
+                VALUES (:user, :total, :fee, :address, :date, :notes, :method, :ref, :fulfill, 'pending')
             ");
             $stmt->execute([
                 ':user'    => $_SESSION['user_id'],
-                ':total'   => $total,
+                ':total'   => $grandTotal,
+                ':fee'     => $orderFee,
                 ':address' => $fulfillment === 'delivery' ? $deliveryAddress : null,
                 ':date'    => $deliveryDate !== '' ? $deliveryDate : null,
                 ':notes'   => $deliveryNotes,
@@ -270,7 +283,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
                     <div class="gcash-box" id="gcashBox" hidden>
                         <strong>Pay with GCash</strong>
-                        <p>Send exactly <strong>₱<?php echo number_format((float)$cartTotal, 2); ?></strong> to<br><span class="gcash-num"><?php echo e($shopGcash); ?></span></p>
+                        <p>Send exactly <strong id="gcashAmt">₱<?php echo number_format($cartTotal + quote_fee($cartTotal, false, $feeFlat, $feeFreeMin), 2); ?></strong> to<br><span class="gcash-num"><?php echo e($shopGcash); ?></span></p>
                         <label>GCash reference number *</label>
                         <input type="text" name="payment_ref" id="paymentRef" inputmode="numeric" maxlength="20" placeholder="13-digit number from your receipt">
                     </div>
@@ -369,11 +382,44 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         <span>₱<?php echo number_format((float)$item['subtotal'], 2); ?></span>
                     </div>
                 <?php endforeach; ?>
+                <?php $summaryFee = quote_fee($cartTotal, false, $feeFlat, $feeFreeMin); ?>
+                <div class="summary-line" id="feeLine"<?php echo $summaryFee <= 0 ? ' hidden' : ''; ?>>
+                    <span>Delivery fee<?php echo ($feeFreeMin > 0) ? ' <small>(free over ₱' . number_format($feeFreeMin, 2) . ')</small>' : ''; ?></span>
+                    <span id="feeAmt">₱<?php echo number_format($summaryFee, 2); ?></span>
+                </div>
                 <div class="summary-total">
                     <strong>Total</strong>
-                    <strong>₱<?php echo number_format((float)$cartTotal, 2); ?></strong>
+                    <strong id="grandTotal">₱<?php echo number_format($cartTotal + $summaryFee, 2); ?></strong>
                 </div>
             </div>
+            <script>
+            (function () {
+                var form = document.getElementById('checkoutForm');
+                var feeLine = document.getElementById('feeLine');
+                var feeAmt = document.getElementById('feeAmt');
+                var grandEl = document.getElementById('grandTotal');
+                if (!form || !feeLine) return;
+                var subtotal = <?php echo json_encode((float)$cartTotal); ?>;
+                var flat = <?php echo json_encode((float)$feeFlat); ?>;
+                var freeMin = <?php echo json_encode((float)$feeFreeMin); ?>;
+                function peso(n) {
+                    return '₱' + n.toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+                }
+                function refreshTotals() {
+                    var pickup = form.querySelector('input[name="fulfillment"]:checked').value === 'pickup';
+                    var fee = (pickup || flat <= 0 || (freeMin > 0 && subtotal >= freeMin)) ? 0 : flat;
+                    feeLine.hidden = fee <= 0;
+                    feeAmt.textContent = peso(fee);
+                    grandEl.textContent = peso(subtotal + fee);
+                    var gamt = document.getElementById('gcashAmt');
+                    if (gamt) { gamt.textContent = peso(subtotal + fee); }
+                }
+                form.querySelectorAll('input[name="fulfillment"]').forEach(function (r) {
+                    r.addEventListener('change', refreshTotals);
+                });
+                refreshTotals();
+            })();
+            </script>
         </div>
     </div>
 </section>

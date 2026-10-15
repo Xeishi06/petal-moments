@@ -70,6 +70,7 @@ CREATE TABLE orders (
   id              INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
   user_id         INT UNSIGNED   NOT NULL,
   total_amount    DECIMAL(10,2)  NOT NULL DEFAULT 0.00,
+  delivery_fee    DECIMAL(10,2)  NOT NULL DEFAULT 0.00,
   delivery_address VARCHAR(255)  NULL,
   delivery_date   DATE           NULL,
   delivery_notes  TEXT           NULL,
@@ -312,6 +313,8 @@ INSERT INTO settings (skey, svalue) VALUES
 ('gcash_number', '0917 123 4567'),
 ('gcash_name', 'Petal Moments'),
 ('pickup_address', '688 B. Manuel St., Montalban, Rizal'),
+('delivery_fee', '50'),
+('free_delivery_min', '1500'),
 ('announcement', 'Fresh flowers, thoughtfully arranged. Same-day orders subject to availability.');
 
 -- Placeholder gallery pictures (3 per product — admin can replace)

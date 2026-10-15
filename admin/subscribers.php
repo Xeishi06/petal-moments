@@ -1,7 +1,7 @@
 <?php
-$active = 'subscribers';
-$adminTitle = 'Newsletter | Petal Moments Admin';
-include __DIR__ . '/includes/admin_header.php';
+require_once __DIR__ . '/../config/functions.php';
+start_session();
+require_admin();
 
 $pdo = db();
 
@@ -15,6 +15,10 @@ if (isset($_GET['toggle'])) {
     $pdo->prepare("UPDATE newsletter_subscribers SET is_subscribed = 1 - is_subscribed WHERE id=:id")->execute([':id'=>(int)$_GET['toggle']]);
     redirect('subscribers.php');
 }
+
+$active = 'subscribers';
+$adminTitle = 'Newsletter | Petal Moments Admin';
+include __DIR__ . '/includes/admin_header.php';
 
 $subs = $pdo->query("SELECT * FROM newsletter_subscribers ORDER BY created_at DESC")->fetchAll();
 $count = $pdo->query("SELECT COUNT(*) FROM newsletter_subscribers WHERE is_subscribed=1")->fetchColumn();
