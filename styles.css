@@ -1661,6 +1661,19 @@ body.dark textarea {
   border-color: rgba(255, 255, 255, 0.14);
   color: #f2e7e2;
 }
+/* Typed selectors beat light rules like .event-form input[type="text"] */
+body.dark input[type="text"],
+body.dark input[type="email"],
+body.dark input[type="password"],
+body.dark input[type="number"],
+body.dark input[type="date"],
+body.dark input[type="time"],
+body.dark select,
+body.dark textarea {
+  background: #211a19;
+  border-color: rgba(255, 255, 255, 0.14);
+  color: #f2e7e2;
+}
 body.dark input::placeholder,
 body.dark textarea::placeholder { color: #8d7a76; }
 body.dark .how-it-works,
