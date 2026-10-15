@@ -112,11 +112,12 @@ $history = $history->fetchAll();
             <div>
                 <table class="cart-table">
                     <thead>
-                        <tr><th>Product</th><th>Qty</th><th>Price</th><th>Subtotal</th></tr>
+                        <tr><th></th><th>Product</th><th>Qty</th><th>Price</th><th>Subtotal</th></tr>
                     </thead>
                     <tbody>
                     <?php foreach ($items as $item): ?>
                         <tr>
+                            <td><img class="order-thumb" src="<?php echo e($item['image'] ?: 'https://images.unsplash.com/photo-1490750967868-88aa4486c946?auto=format&fit=crop&w=200&q=70'); ?>" alt=""></td>
                             <td><a href="product.php?id=<?php echo (int)$item['product_id']; ?>"><?php echo e($item['name'] ?? 'Arrangement'); ?></a><?php echo (!empty($item['variant_name']) && $item['variant_name'] !== 'Standard') ? ' (' . e($item['variant_name']) . ')' : ''; ?><?php echo !empty($item['dedication']) ? '<br><small>✎ ' . e($item['dedication']) . '</small>' : ''; ?></td>
                             <td><?php echo (int)$item['quantity']; ?></td>
                             <td>₱<?php echo number_format((float)$item['unit_price'], 2); ?></td>
@@ -125,7 +126,7 @@ $history = $history->fetchAll();
                     <?php endforeach; ?>
                     </tbody>
                     <tfoot>
-                        <tr><td colspan="3" class="right">Total</td><td>₱<?php echo number_format((float)$order['total_amount'], 2); ?></td></tr>
+                        <tr><td colspan="4" class="right">Total</td><td>₱<?php echo number_format((float)$order['total_amount'], 2); ?></td></tr>
                     </tfoot>
                 </table>
 

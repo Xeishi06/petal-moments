@@ -35,7 +35,8 @@ $stmt->execute([':id' => $_SESSION['user_id']]);
 $user = $stmt->fetch();
 
 $orders = db()->prepare("
-    SELECT o.*, COUNT(oi.id) AS items
+    SELECT o.*, COUNT(oi.id) AS items,
+           (SELECT p.image FROM order_items oi2 JOIN products p ON p.id = oi2.product_id WHERE oi2.order_id = o.id LIMIT 1) AS thumb
     FROM orders o
     LEFT JOIN order_items oi ON oi.order_id = o.id
     WHERE o.user_id = :id
@@ -124,11 +125,12 @@ $favPreview = $favPreview->fetchAll();
                 <?php else: ?>
                     <table class="cart-table">
                         <thead>
-                            <tr><th>Order #</th><th>Total</th><th>Status</th><th>Date</th><th></th></tr>
+                            <tr><th></th><th>Order #</th><th>Total</th><th>Status</th><th>Date</th><th></th></tr>
                         </thead>
                         <tbody>
                         <?php foreach ($myOrders as $o): ?>
                             <tr>
+                                <td><a href="order.php?id=<?php echo (int)$o['id']; ?>"><img class="order-thumb" src="<?php echo e($o['thumb'] ?: 'https://images.unsplash.com/photo-1490750967868-88aa4486c946?auto=format&fit=crop&w=200&q=70'); ?>" alt=""></a></td>
                                 <td><a href="order.php?id=<?php echo (int)$o['id']; ?>">#<?php echo (int)$o['id']; ?></a></td>
                                 <td>₱<?php echo number_format((float)$o['total_amount'], 2); ?></td>
                                 <td><span class="badge badge-<?php echo e($o['status']); ?>"><?php echo ucfirst(e($o['status'])); ?></span></td>

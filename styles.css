@@ -1650,6 +1650,10 @@ a.floating-card:hover {
 .cart-table tfoot td { font-weight: 700; }
 .cart-table .right { text-align: right; }
 .cart-table input[type="number"] { width: 70px; padding: 8px; border: 1px solid var(--border); border-radius: 8px; }
+.order-thumb {
+  width: 46px; height: 46px; object-fit: cover;
+  border-radius: 12px; display: block;
+}
 .line-variant {
   display: inline-block;
   margin-top: 4px;
