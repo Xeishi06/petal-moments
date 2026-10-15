@@ -21,7 +21,7 @@ try {
 } catch (Exception $e) {}
 
 $recentOrders = db()->query("
-    SELECT o.id, o.total_amount, o.status, o.created_at, u.id AS customer_id
+    SELECT o.id, o.total_amount, o.status, o.created_at, u.id AS customer_id, u.first_name, u.last_name
     FROM orders o JOIN users u ON u.id = o.user_id
     ORDER BY o.created_at DESC LIMIT 6
 ")->fetchAll();
@@ -75,8 +75,8 @@ $topProducts = db()->query("
         <?php else: ?>
             <?php foreach ($recentOrders as $o): ?>
             <tr>
-                <td>#<?php echo (int)$o['id']; ?></td>
-                <td>Customer <?php echo (int)$o['customer_id']; ?></td>
+                <td><a href="order_detail.php?id=<?php echo (int)$o['id']; ?>">#<?php echo (int)$o['id']; ?></a></td>
+                <td><?php echo e(trim(($o['first_name'] ?? '') . ' ' . ($o['last_name'] ?? '')) ?: 'Customer ' . (int)$o['customer_id']); ?></td>
                 <td>₱<?php echo number_format((float)$o['total_amount'], 2); ?></td>
                 <td><span class="badge badge-<?php echo e($o['status']); ?>"><?php echo ucfirst(e($o['status'])); ?></span></td>
                 <td><?php echo date('M j, Y', strtotime($o['created_at'])); ?></td>

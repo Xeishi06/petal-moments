@@ -5,6 +5,10 @@ require_admin();
 
 $pdo = db();
 
+$fStatus = $_GET['status'] ?? $_POST['fstatus'] ?? 'all';
+if (!in_array($fStatus, ['all', 'pending', 'processing', 'delivered', 'cancelled'], true)) { $fStatus = 'all'; }
+$fSearch = trim($_GET['q'] ?? $_POST['fq'] ?? '');
+
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['form'] ?? '') === 'status') {
     $orderId = (int)($_POST['order_id'] ?? 0);
     $status  = $_POST['status'] ?? '';
@@ -23,16 +27,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['form'] ?? '') === 'status'
             flash('error', 'Update failed: ' . $e->getMessage());
         }
     }
-    redirect('orders.php');
+    $back = 'orders.php?status=' . urlencode($fStatus);
+    if ($fSearch !== '') { $back .= '&q=' . urlencode($fSearch); }
+    redirect($back);
 }
 
 $active = 'orders';
 $adminTitle = 'Orders | Petal Moments Admin';
 include __DIR__ . '/includes/admin_header.php';
-
-$fStatus = $_GET['status'] ?? 'all';
-if (!in_array($fStatus, ['all', 'pending', 'processing', 'delivered', 'cancelled'], true)) { $fStatus = 'all'; }
-$fSearch = trim($_GET['q'] ?? '');
 
 $where = [];
 $params = [];
@@ -45,8 +47,11 @@ $whereSql = $where ? ('WHERE ' . implode(' AND ', $where)) : '';
 
 $oq = $pdo->prepare("
     SELECT o.id, o.user_id, o.total_amount, o.status, o.created_at, o.payment_method, o.payment_ref, o.delivery_address, o.fulfillment,
-           u.id AS customer_id, u.email,
-           (SELECT COUNT(*) FROM order_items oi WHERE oi.order_id=o.id) AS items
+           u.id AS customer_id, u.first_name, u.last_name, u.email,
+           (SELECT COUNT(*) FROM order_items oi WHERE oi.order_id=o.id) AS items,
+           (SELECT GROUP_CONCAT(CONCAT(p.name, ' ×', oi.quantity) SEPARATOR ', ')
+            FROM order_items oi LEFT JOIN products p ON p.id = oi.product_id
+            WHERE oi.order_id = o.id) AS item_names
     FROM orders o JOIN users u ON u.id=o.user_id
     $whereSql
     ORDER BY o.created_at DESC
@@ -84,9 +89,9 @@ $orders = $oq->fetchAll();
                 <td><a href="order_detail.php?id=<?php echo (int)$o['id']; ?>"><strong>#<?php echo (int)$o['id']; ?></strong></a></td>
                 <td>
                     <div class="cell-with-thumb">
-                        <span class="avatar avatar-sm avatar-sage">C</span>
+                        <span class="avatar avatar-sm avatar-sage"><?php echo e(mb_strtoupper(mb_substr($o['first_name'] ?? 'C', 0, 1))); ?></span>
                         <div>
-                            <strong>Customer <?php echo (int)$o['customer_id']; ?></strong>
+                            <strong><?php echo e(trim(($o['first_name'] ?? '') . ' ' . ($o['last_name'] ?? '')) ?: 'Customer ' . (int)$o['customer_id']); ?></strong>
                             <small><?php echo e($o['email']); ?></small>
                             <?php if (($o['fulfillment'] ?? 'delivery') === 'pickup'): ?>
                                 <small>🏃 Pickup</small>
@@ -96,7 +101,7 @@ $orders = $oq->fetchAll();
                         </div>
                     </div>
                 </td>
-                <td><?php echo (int)$o['items']; ?></td>
+                <td><?php echo (int)$o['items']; ?><?php if (!empty($o['item_names'])): ?><br><small title="<?php echo e($o['item_names']); ?>"><?php echo e(mb_strimwidth($o['item_names'], 0, 42, '…')); ?></small><?php endif; ?></td>
                 <td>₱<?php echo number_format((float)$o['total_amount'], 2); ?></td>
                 <td><?php echo e(strtoupper(str_replace('_',' ',$o['payment_method']))); ?><?php echo ($o['payment_method'] === 'gcash' && !empty($o['payment_ref'])) ? ' • Ref: ' . e($o['payment_ref']) : ''; ?></td>
                 <td><span class="badge badge-<?php echo e($o['status']); ?>"><?php echo ucfirst(e($o['status'])); ?></span></td>
@@ -105,6 +110,8 @@ $orders = $oq->fetchAll();
                     <form method="post" action="orders.php" class="inline-form">
                         <input type="hidden" name="form" value="status">
                         <input type="hidden" name="order_id" value="<?php echo (int)$o['id']; ?>">
+                        <input type="hidden" name="fstatus" value="<?php echo e($fStatus); ?>">
+                        <input type="hidden" name="fq" value="<?php echo e($fSearch); ?>">
                         <select name="status" onchange="this.form.submit()">
                             <?php foreach (['pending','processing','delivered','cancelled'] as $s): ?>
                                 <option value="<?php echo $s; ?>" <?php echo $o['status']===$s?'selected':''; ?>><?php echo ucfirst($s); ?></option>
