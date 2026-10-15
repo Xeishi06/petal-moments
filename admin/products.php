@@ -55,12 +55,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['form'] ?? '') === 'product
             $pdo->prepare("UPDATE products SET category_id=:c, name=:n, slug=:s, description=:d, price=:p, image=:i, stock=:st, is_featured=:f WHERE id=:id")
                 ->execute([':c'=>$category?:null, ':n'=>$name, ':s'=>$slug, ':d'=>$desc, ':p'=>$price, ':i'=>$image, ':st'=>$stock, ':f'=>$featured, ':id'=>$id]);
             flash('success', 'Product updated.');
+            redirect('products.php');
         } else {
             $pdo->prepare("INSERT INTO products (category_id, name, slug, description, price, image, stock, is_featured, is_addon) VALUES (:c,:n,:s,:d,:p,:i,:st,:f,0)")
                 ->execute([':c'=>$category?:null, ':n'=>$name, ':s'=>$slug, ':d'=>$desc, ':p'=>$price, ':i'=>$image, ':st'=>$stock, ':f'=>$featured]);
-            flash('success', 'Product added.');
+            $newId = (int)$pdo->lastInsertId();
+            flash('success', 'Product added. Now add its extra pictures below.');
+            redirect('products.php?edit=' . $newId);
         }
-        redirect('products.php');
     }
 }
 
