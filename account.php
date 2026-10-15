@@ -138,15 +138,6 @@ $myPayments = db()->prepare("SELECT * FROM saved_payments WHERE user_id = :id OR
 $myPayments->execute([':id' => $_SESSION['user_id']]);
 $myPayments = $myPayments->fetchAll();
 $myTheme = $user['theme'] ?? 'light';
-?>
-<?php $pageTitle = 'My Account | Petal Moments'; include __DIR__ . '/includes/header.php'; ?>
-
-<section class="section">
-    <div class="container">
-        <div class="section-heading">
-            <span class="eyebrow">MY ACCOUNT</span>
-            <h2>Hello, <em><?php echo e($user['first_name']); ?></em></h2>
-        </div>
 
 $validTabs = ['account', 'security', 'payments', 'appearance', 'favorites', 'reviews'];
 $tab = $_GET['tab'] ?? 'account';
@@ -157,7 +148,7 @@ if (!in_array($tab, $validTabs, true)) { $tab = 'account'; }
 <section class="section">
     <div class="container">
         <div class="section-heading">
-            <span class="eyebrow">SETTINGS</span>
+            <span class="eyebrow">MY ACCOUNT</span>
             <h2>Hello, <em><?php echo e($user['first_name']); ?></em></h2>
         </div>
 
