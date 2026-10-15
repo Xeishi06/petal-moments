@@ -6,11 +6,18 @@ require_admin();
 $pdo = db();
 
 if (isset($_GET['delete'])) {
-    try {
-        $pdo->prepare("DELETE FROM categories WHERE id = :id")->execute([':id'=>(int)$_GET['delete']]);
-        flash('success', 'Category deleted.');
-    } catch (Exception $e) {
-        flash('error', 'Could not delete category: ' . $e->getMessage());
+    $cid = (int)$_GET['delete'];
+    $inUse = $pdo->prepare("SELECT COUNT(*) FROM products WHERE category_id = :id");
+    $inUse->execute([':id' => $cid]);
+    if ((int)$inUse->fetchColumn() > 0) {
+        flash('error', 'This category still has products. Move or delete them first.');
+    } else {
+        try {
+            $pdo->prepare("DELETE FROM categories WHERE id = :id")->execute([':id' => $cid]);
+            flash('success', 'Category deleted.');
+        } catch (Exception $e) {
+            flash('error', 'Could not delete category: ' . $e->getMessage());
+        }
     }
     redirect('categories.php');
 }

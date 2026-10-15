@@ -444,6 +444,12 @@ button { cursor: pointer; }
 .link-soft:hover { text-decoration: underline; }
 .cell-actions { display: inline-flex; align-items: center; gap: 10px; flex-wrap: wrap; }
 .cell-actions .sep { color: #d9cbc6; }
+.category-tabs { display: flex; gap: 8px; flex-wrap: wrap; }
+.category-tabs a {
+  padding: 7px 16px; border-radius: 999px; font-size: 0.8rem; font-weight: 600;
+  color: var(--muted); background: var(--paper); text-decoration: none;
+}
+.category-tabs a.active { background: var(--rose); color: #fff; }
 .dash-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; }
 .stock-ok { color: #2c7a3f; font-weight: 600; }
 .mini-stats { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin: 12px 0 6px; }

@@ -28,12 +28,12 @@ $allVariants = cart_variants();
 $showVariants = ($product['category_slug'] ?? '') !== 'gifts' && count($allVariants) > 1;
 $defaultVid = cart_default_variant();
 
-// "Complete your gift" cross-sell: gift add-ons, excluding this product
+// "Complete your gift" cross-sell: flagged add-ons, excluding this product
+// (flag-based, so deleting a category can never wipe them again)
 $giftStmt = db()->prepare("
     SELECT p.id, p.name, p.price, p.image
     FROM products p
-    JOIN categories c ON c.id = p.category_id AND c.slug = 'gifts'
-    WHERE p.is_active = 1 AND p.id != :id
+    WHERE p.is_addon = 1 AND p.is_active = 1 AND p.id != :id
     ORDER BY p.id LIMIT 4
 ");
 $giftStmt->execute([':id' => $product['id']]);
