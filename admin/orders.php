@@ -7,26 +7,46 @@ $pdo = db();
 
 if (isset($_GET['export']) && $_GET['export'] === 'csv') {
     $rows = $pdo->query("
-        SELECT o.id, o.created_at, o.status, o.total_amount, o.fulfillment,
+        SELECT o.id, o.created_at, o.status, o.total_amount, o.delivery_fee, o.fulfillment,
                o.delivery_address, o.delivery_date, o.payment_method, o.payment_ref,
                u.first_name, u.last_name, u.email,
                (SELECT GROUP_CONCAT(CONCAT(p.name, ' x', oi.quantity) SEPARATOR '; ')
                 FROM order_items oi LEFT JOIN products p ON p.id = oi.product_id
                 WHERE oi.order_id = o.id) AS items
-        FROM orders o JOIN users u ON u.id = o.user_id
+        FROM orders o JOIN users u ON u.id=o.user_id
         ORDER BY o.created_at DESC
     ")->fetchAll();
+    $payLabels = ['cash_on_delivery' => 'Cash on Delivery', 'gcash' => 'GCash', 'pay_on_pickup' => 'Pay on Pickup'];
     header('Content-Type: text/csv; charset=utf-8');
     header('Content-Disposition: attachment; filename="petal-moments-orders-' . date('Y-m-d') . '.csv"');
     $out = fopen('php://output', 'w');
-    fputcsv($out, ['Order #', 'Date', 'Status', 'Total', 'Fulfillment', 'Address', 'Delivery date', 'Payment', 'GCash ref', 'Customer', 'Email', 'Items']);
+    fwrite($out, "\xEF\xBB\xBF"); // UTF-8 BOM so ₱ renders in Excel
+    fputcsv($out, ['Order #', 'Date', 'Time', 'Status', 'Items total', 'Delivery fee', 'Total', 'Fulfillment', 'Address', 'Delivery date', 'Payment', 'GCash ref', 'Customer', 'Email', 'Items']);
     foreach ($rows as $r) {
+        $dt = strtotime($r['created_at']);
+        // ="..." keeps long GCash refs as text instead of 1.23E+12
+        $ref = ($r['payment_method'] === 'gcash' && !empty($r['payment_ref'])) ? '="' . $r['payment_ref'] . '"' : '';
         fputcsv($out, [
-            $r['id'], $r['created_at'], $r['status'], $r['total_amount'], $r['fulfillment'],
-            $r['delivery_address'], $r['delivery_date'], $r['payment_method'], $r['payment_ref'],
-            trim(($r['first_name'] ?? '') . ' ' . ($r['last_name'] ?? '')), $r['email'], $r['items'],
+            $r['id'],
+            date('Y-m-d', $dt),
+            date('H:i', $dt),
+            ucfirst($r['status']),
+            $r['total_amount'] - $r['delivery_fee'],
+            $r['delivery_fee'],
+            $r['total_amount'],
+            ucfirst($r['fulfillment']),
+            $r['delivery_address'],
+            $r['delivery_date'],
+            $payLabels[$r['payment_method']] ?? $r['payment_method'],
+            $ref,
+            trim(($r['first_name'] ?? '') . ' ' . ($r['last_name'] ?? '')),
+            $r['email'],
+            $r['items'],
         ]);
     }
+    fclose($out);
+    exit;
+}
     fclose($out);
     exit;
 }
