@@ -5,6 +5,35 @@ require_admin();
 
 $pdo = db();
 
+// Validate + store one gallery upload. Returns [path|null, error|null].
+function save_gallery_upload($tmpPath, $origName, $size, $pid)
+{
+    $allowed = ['jpg' => 'image/jpeg', 'jpeg' => 'image/jpeg', 'png' => 'image/png', 'webp' => 'image/webp', 'gif' => 'image/gif'];
+    $ext = strtolower(pathinfo($origName, PATHINFO_EXTENSION));
+    $finfo = new finfo(FILEINFO_MIME_TYPE);
+    $mime = $finfo->file($tmpPath);
+    if (!isset($allowed[$ext]) || $allowed[$ext] !== $mime) {
+        return [null, '"' . $origName . '" is not a JPG, PNG, WEBP or GIF image.'];
+    }
+    if ($size > 2 * 1024 * 1024) {
+        return [null, '"' . $origName . '" is over 2MB.'];
+    }
+    $filename = 'gallery-' . (int)$pid . '-' . time() . '-' . substr(md5($origName . microtime(true)), 0, 6) . '.' . $ext;
+    $destDir = __DIR__ . '/../uploads/products';
+    if (!is_dir($destDir)) { mkdir($destDir, 0755, true); }
+    if (!move_uploaded_file($tmpPath, $destDir . '/' . $filename)) {
+        return [null, 'Could not save "' . $origName . '".'];
+    }
+    return ['uploads/products/' . $filename, null];
+}
+
+function gallery_next_order($pdo, $pid)
+{
+    $ord = $pdo->prepare("SELECT COALESCE(MAX(sort_order), 0) + 1 FROM product_images WHERE product_id = :id");
+    $ord->execute([':id' => (int)$pid]);
+    return (int)$ord->fetchColumn();
+}
+
 if (isset($_GET['delete'])) {
     $pdo->prepare("DELETE FROM products WHERE id = :id")->execute([':id' => (int)$_GET['delete']]);
     flash('success', 'Product deleted.');
@@ -60,7 +89,41 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['form'] ?? '') === 'product
             $pdo->prepare("INSERT INTO products (category_id, name, slug, description, price, image, stock, is_featured, is_addon) VALUES (:c,:n,:s,:d,:p,:i,:st,:f,0)")
                 ->execute([':c'=>$category?:null, ':n'=>$name, ':s'=>$slug, ':d'=>$desc, ':p'=>$price, ':i'=>$image, ':st'=>$stock, ':f'=>$featured]);
             $newId = (int)$pdo->lastInsertId();
-            flash('success', 'Product added. Now add its extra pictures below.');
+            // Extra pictures submitted with the new product (URLs + uploads)
+            $added = 0;
+            $skipped = [];
+            foreach (preg_split('/\r\n|\r|\n/', trim($_POST['gallery_urls'] ?? '')) as $u) {
+                $u = trim($u);
+                if ($u === '') { continue; }
+                $pdo->prepare("INSERT INTO product_images (product_id, image, sort_order) VALUES (:pid, :img, :ord)")
+                    ->execute([':pid' => $newId, ':img' => mb_substr($u, 0, 255), ':ord' => gallery_next_order($pdo, $newId)]);
+                $added++;
+            }
+            if (!empty($_FILES['gallery_files']['name']) && is_array($_FILES['gallery_files']['name'])) {
+                foreach ($_FILES['gallery_files']['name'] as $fi => $fname) {
+                    if ($fname === '' || ($_FILES['gallery_files']['error'][$fi] ?? UPLOAD_ERR_NO_FILE) !== UPLOAD_ERR_OK) { continue; }
+                    list($path, $err) = save_gallery_upload(
+                        $_FILES['gallery_files']['tmp_name'][$fi], $fname,
+                        (int)$_FILES['gallery_files']['size'][$fi], $newId
+                    );
+                    if ($path !== null) {
+                        $pdo->prepare("INSERT INTO product_images (product_id, image, sort_order) VALUES (:pid, :img, :ord)")
+                            ->execute([':pid' => $newId, ':img' => $path, ':ord' => gallery_next_order($pdo, $newId)]);
+                        $added++;
+                    } else {
+                        $skipped[] = $err;
+                    }
+                }
+            }
+            if ($added > 0 && empty($skipped)) {
+                flash('success', 'Product added with ' . $added . ' extra picture(s).');
+            } elseif ($added > 0) {
+                flash('success', 'Product added with ' . $added . ' extra picture(s). Skipped: ' . implode(' ', $skipped));
+            } elseif (!empty($skipped)) {
+                flash('success', 'Product added, but extra pictures were skipped: ' . implode(' ', $skipped));
+            } else {
+                flash('success', 'Product added. Now add its extra pictures below.');
+            }
             redirect('products.php?edit=' . $newId);
         }
     }
@@ -187,6 +250,13 @@ $heroIds = array_map('intval', array_column(
         <input type="file" name="image_file" accept="image/jpeg,image/png,image/webp,image/gif">
         <?php if (!empty($editing['image'])): ?>
             <div class="img-preview"><img src="<?php echo e($editing['image']); ?>" alt="Product preview"><small>Current image</small></div>
+        <?php endif; ?>
+
+        <?php if (!$editing): ?>
+        <label>Extra pictures <small class="opt">(optional — also editable later)</small></label>
+        <input type="file" name="gallery_files[]" multiple accept="image/jpeg,image/png,image/webp,image/gif">
+        <label style="margin-top:10px;">Or paste image URLs <small class="opt">(one per line)</small></label>
+        <textarea name="gallery_urls" rows="2" placeholder="https://..."></textarea>
         <?php endif; ?>
 
         <?php if ($editing): ?>
