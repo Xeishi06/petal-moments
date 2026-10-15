@@ -1693,6 +1693,12 @@ body.dark .fav-btn,
 body.dark .hero-arrow { background: rgba(33, 26, 25, 0.92); color: #f2e7e2; }
 body.dark .floating-card { background: rgba(33, 26, 25, 0.95); }
 body.dark .empty-state { color: #b9a5a0; }
+/* Dark surfaces that must stay dark (they use --ink as background) */
+body.dark .announcement { background: #171110; color: #f9efea; }
+body.dark .menu-btn span { background: #f2e7e2; }
+body.dark .btn-dark { background: #171110; color: #fff; border: 1px solid rgba(255, 255, 255, 0.16); }
+body.dark .btn-dark:hover { background: #2c2321; }
+body.dark .event-stat { background: #171110; color: #fff; }
 body.dark .settings-side,
 body.dark .settings-panel { background: #2c2321; border-color: rgba(255, 255, 255, 0.1); }
 body.dark .settings-side a { color: #b9a5a0; }
