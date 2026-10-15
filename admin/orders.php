@@ -47,9 +47,6 @@ if (isset($_GET['export']) && $_GET['export'] === 'csv') {
     fclose($out);
     exit;
 }
-    fclose($out);
-    exit;
-}
 
 $fStatus = $_GET['status'] ?? $_POST['fstatus'] ?? 'all';
 if (!in_array($fStatus, ['all', 'pending', 'processing', 'delivered', 'cancelled'], true)) { $fStatus = 'all'; }
