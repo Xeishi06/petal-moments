@@ -85,8 +85,7 @@ button {
   min-height: 82px;
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  gap: 24px;
+  gap: 28px;
 }
 
 .brand {
@@ -94,6 +93,15 @@ button {
   align-items: center;
   gap: 12px;
   flex-shrink: 0;
+  margin-right: auto;
+}
+
+.main-nav {
+  margin: 0 auto;
+}
+
+.nav-actions {
+  margin-left: auto;
 }
 
 .brand-mark {
