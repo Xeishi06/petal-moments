@@ -1449,6 +1449,35 @@ a.floating-card:hover {
 .opt { font-weight: 400; color: var(--muted); font-size: 0.72rem; }
 .cross-sell { margin-top: 70px; }
 .cross-grid { grid-template-columns: repeat(4, 1fr); }
+/* Compact gift add-ons */
+.addon-box {
+  margin-top: 22px;
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  padding: 16px 18px 8px;
+  background: #fffdfb;
+}
+.addon-head { margin-bottom: 6px; }
+.addon-head strong { font-size: 0.95rem; }
+.addon-head small { display: block; color: var(--muted); font-size: 0.76rem; }
+.addon-row {
+  display: grid;
+  grid-template-columns: 52px 1fr auto;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 0;
+  border-top: 1px solid rgba(48, 38, 37, 0.08);
+}
+.addon-row img {
+  width: 52px;
+  height: 52px;
+  object-fit: cover;
+  border-radius: 12px;
+}
+.addon-info strong { display: block; font-size: 0.86rem; }
+.addon-info span { color: var(--rose-dark); font-weight: 700; font-size: 0.85rem; }
+.addon-row form { margin: 0; }
+.addon-row .btn-small { min-height: 36px; padding-inline: 14px; }
 @media (max-width: 1020px) {
   .cross-grid { grid-template-columns: repeat(2, 1fr); }
 }

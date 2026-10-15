@@ -134,28 +134,20 @@ $gifts = $giftStmt->fetchAll();
                     ♥ Save to Favorites
                 </button>
                 <?php endif; ?>
-            </div>
-        </div>
 
-        <?php if (!empty($gifts)): ?>
-        <div class="cross-sell">
-            <div class="section-heading">
-                <span class="eyebrow">COMPLETE YOUR GIFT</span>
-                <h2>Add a little <em>extra</em></h2>
-            </div>
-            <div class="product-grid cross-grid">
-                <?php foreach ($gifts as $g): ?>
-                <article class="product-card">
-                    <div class="product-image">
-                        <img src="<?php echo e($g['image'] ?: 'https://images.unsplash.com/photo-1490750967868-88aa4486c946?auto=format&fit=crop&w=700&q=80'); ?>" alt="<?php echo e($g['name']); ?>">
+                <?php if (!empty($gifts)): ?>
+                <div class="addon-box">
+                    <div class="addon-head">
+                        <strong>Complete your gift</strong>
+                        <small>Small extras, big smiles</small>
                     </div>
-                    <div class="product-details">
-                        <div>
-                            <h3><?php echo e($g['name']); ?></h3>
+                    <?php foreach ($gifts as $g): ?>
+                    <div class="addon-row">
+                        <img src="<?php echo e($g['image'] ?: 'https://images.unsplash.com/photo-1490750967868-88aa4486c946?auto=format&fit=crop&w=200&q=70'); ?>" alt="<?php echo e($g['name']); ?>">
+                        <div class="addon-info">
+                            <strong><?php echo e($g['name']); ?></strong>
+                            <span>₱<?php echo number_format((float)$g['price'], 2); ?></span>
                         </div>
-                        <strong>₱<?php echo number_format((float)$g['price'], 2); ?></strong>
-                    </div>
-                    <div class="product-card-actions">
                         <?php if (is_logged_in()): ?>
                         <form method="post" action="cart.php?action=add">
                             <input type="hidden" name="product_id" value="<?php echo (int)$g['id']; ?>">
@@ -166,11 +158,11 @@ $gifts = $giftStmt->fetchAll();
                         <a class="btn btn-dark btn-small" href="product.php?id=<?php echo (int)$g['id']; ?>">View</a>
                         <?php endif; ?>
                     </div>
-                </article>
-                <?php endforeach; ?>
+                    <?php endforeach; ?>
+                </div>
+                <?php endif; ?>
             </div>
         </div>
-        <?php endif; ?>
     </div>
 </section>
 
