@@ -1448,6 +1448,20 @@ a.floating-card:hover {
   margin-bottom: 4px;
 }
 .opt { font-weight: 400; color: var(--muted); font-size: 0.72rem; }
+/* Sale pricing */
+.was { color: var(--muted); font-weight: 400; font-size: 0.85em; text-decoration: line-through; }
+.sale-tag {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 6px;
+  background: #e04848;
+  color: #fff;
+  font-size: 0.62rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  vertical-align: middle;
+}
+.sale-tag.big { font-size: 0.7rem; padding: 4px 12px; }
 /* Account hub */
 .hub-stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-bottom: 30px; }
 .hub-stat {

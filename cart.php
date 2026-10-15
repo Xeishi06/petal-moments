@@ -84,7 +84,7 @@ if (!empty($lines)) {
     $ids = array_unique(array_map(function ($ln) { return $ln['pid']; }, $lines));
     $in  = implode(',', array_map('intval', $ids));
     $rows = [];
-    foreach (db()->query("SELECT id, name, price, image, stock FROM products WHERE id IN ($in)")->fetchAll() as $r) {
+    foreach (db()->query("SELECT id, name, price, sale_price, image, stock FROM products WHERE id IN ($in)")->fetchAll() as $r) {
         $rows[(int)$r['id']] = $r;
     }
     $kept = [];
@@ -95,7 +95,7 @@ if (!empty($lines)) {
         // Clamp to available stock so checkout never oversells
         if ((int)$r['stock'] > 0) { $qty = min($qty, (int)$r['stock']); }
         $adj = isset($variants[$ln['vid']]) ? $variants[$ln['vid']]['adjust'] : 0;
-        $unit = (float)$r['price'] + $adj;
+        $unit = eff_price($r) + $adj;
         $subtotal = $unit * $qty;
         $cartTotal += $subtotal;
         $cartItems[] = array_merge($r, [

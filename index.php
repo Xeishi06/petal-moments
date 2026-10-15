@@ -72,7 +72,7 @@ $ratingInfo = product_ratings(array_column($featured, 'id'));
                                 'id'    => (int)$fp['id'],
                                 'image' => $fp['image'] ?: 'https://images.unsplash.com/photo-1490750967868-88aa4486c946?auto=format&fit=crop&w=1200&q=85',
                                 'name'  => $fp['name'] ?? 'Arrangement',
-                                'price' => '₱' . number_format((float)($fp['price'] ?? 0), 2),
+                                'price' => '₱' . number_format(eff_price($fp), 2),
                             ];
                         }
                         if (empty($heroSlides)) {
@@ -93,7 +93,7 @@ $ratingInfo = product_ratings(array_column($featured, 'id'));
                     <a class="floating-card" id="heroCard" href="<?php echo ($hero && (int)$hero['id'] > 0) ? 'product.php?id=' . (int)$hero['id'] : 'shop.php'; ?>">
                         <span>Bestseller</span>
                         <strong id="heroName"><?php echo e($hero['name'] ?? 'Blush Garden Bouquet'); ?></strong>
-                        <small><span id="heroPrice">₱<?php echo number_format((float)($hero['price'] ?? 899), 2); ?></span> · <span class="hero-shop">Shop now →</span></small>
+                        <small><span id="heroPrice">₱<?php echo number_format(eff_price($hero ?? ['price' => 899]), 2); ?></span> · <span class="hero-shop">Shop now →</span></small>
                     </a>
                     <div class="decor-flower decor-one">✿</div>
                     <div class="decor-flower decor-two">❀</div>
@@ -172,7 +172,7 @@ $ratingInfo = product_ratings(array_column($featured, 'id'));
                                 <h3><?php echo e($p['name'] ?? 'Arrangement'); ?></h3>
                                 <p><?php echo e($p['category_name'] ?? 'For any occasion'); ?><?php echo ($soldCounts[(int)$p['id']] ?? 0) > 0 ? ' • 🔥 ' . (int)$soldCounts[(int)$p['id']] . ' sold' : ''; ?><?php $ri = $ratingInfo[(int)$p['id']] ?? ['avg' => 0, 'n' => 0]; echo $ri['n'] > 0 ? ' • ★ ' . number_format($ri['avg'], 1) : ''; ?></p>
                             </div>
-                            <strong>₱<?php echo number_format((float)($p['price'] ?? 0), 2); ?></strong>
+                            <strong><?php if (on_sale($p)): ?><s class="was">₱<?php echo number_format((float)$p['price'], 2); ?></s> <?php endif; ?>₱<?php echo number_format(eff_price($p), 2); ?><?php if (on_sale($p)): ?> <span class="sale-tag">SALE</span><?php endif; ?></strong>
                         </div>
                     </article>
                     <?php endforeach; ?>

@@ -84,7 +84,7 @@ foreach ($allCats as $c) { if ($c['slug'] === $categorySlug) { $activeCatName = 
                         <h3><?php echo e($p['name'] ?? 'Arrangement'); ?></h3>
                         <p><?php echo e($p['category_name'] ?? 'For any occasion'); ?><?php echo ($soldCounts[(int)$p['id']] ?? 0) > 0 ? ' • 🔥 ' . (int)$soldCounts[(int)$p['id']] . ' sold' : ''; ?><?php $ri = $ratingInfo[(int)$p['id']] ?? ['avg' => 0, 'n' => 0]; echo $ri['n'] > 0 ? ' • ★ ' . number_format($ri['avg'], 1) : ''; ?></p>
                     </div>
-                    <strong>₱<?php echo number_format((float)($p['price'] ?? 0), 2); ?></strong>
+                    <strong><?php if (on_sale($p)): ?><s class="was">₱<?php echo number_format((float)$p['price'], 2); ?></s> <?php endif; ?>₱<?php echo number_format(eff_price($p), 2); ?><?php if (on_sale($p)): ?> <span class="sale-tag">SALE</span><?php endif; ?></strong>
                 </div>
                 <div class="product-card-actions">
                     <a class="btn btn-dark btn-small" href="product.php?id=<?php echo (int)$p['id']; ?>">View Details</a>

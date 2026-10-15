@@ -145,6 +145,20 @@ function cart_save_lines($store, $lines)
     $_SESSION[$store] = $lines;
 }
 
+// Sale-aware pricing: sale_price wins when set and below regular price
+function eff_price($p)
+{
+    $price = (float)($p['price'] ?? 0);
+    $sale = isset($p['sale_price']) && $p['sale_price'] !== null && $p['sale_price'] !== '' ? (float)$p['sale_price'] : null;
+    if ($sale !== null && $sale > 0 && $sale < $price) { return $sale; }
+    return $price;
+}
+
+function on_sale($p)
+{
+    return eff_price($p) < (float)($p['price'] ?? 0);
+}
+
 // Units sold per product (paid pipeline only — cancelled excluded)
 function product_sold_counts($ids)
 {

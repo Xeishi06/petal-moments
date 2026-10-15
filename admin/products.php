@@ -45,6 +45,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['form'] ?? '') === 'product
     $name      = trim($_POST['name'] ?? '');
     $category  = (int)($_POST['category_id'] ?? 0);
     $price     = (float)($_POST['price'] ?? 0);
+    $sale      = trim($_POST['sale_price'] ?? '');
+    $sale      = $sale === '' ? null : (float)$sale;
     $stock     = (int)($_POST['stock'] ?? 0);
     $image     = trim($_POST['image'] ?? '');
     $desc      = trim($_POST['description'] ?? '');
@@ -77,17 +79,19 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['form'] ?? '') === 'product
 
     if ($name === '' || $price <= 0) {
         flash('error', 'Product name and a valid price are required.');
+    } elseif ($sale !== null && ($sale <= 0 || $sale >= $price)) {
+        flash('error', 'Sale price must be below the regular price (or left blank).');
     } elseif ($uploadError !== null) {
         flash('error', $uploadError);
     } else {
         if ($id > 0) {
-            $pdo->prepare("UPDATE products SET category_id=:c, name=:n, slug=:s, description=:d, price=:p, image=:i, stock=:st, is_featured=:f WHERE id=:id")
-                ->execute([':c'=>$category?:null, ':n'=>$name, ':s'=>$slug, ':d'=>$desc, ':p'=>$price, ':i'=>$image, ':st'=>$stock, ':f'=>$featured, ':id'=>$id]);
+            $pdo->prepare("UPDATE products SET category_id=:c, name=:n, slug=:s, description=:d, price=:p, sale_price=:sp, image=:i, stock=:st, is_featured=:f WHERE id=:id")
+                ->execute([':c'=>$category?:null, ':n'=>$name, ':s'=>$slug, ':d'=>$desc, ':p'=>$price, ':sp'=>$sale, ':i'=>$image, ':st'=>$stock, ':f'=>$featured, ':id'=>$id]);
             flash('success', 'Product updated.');
             redirect('products.php');
         } else {
-            $pdo->prepare("INSERT INTO products (category_id, name, slug, description, price, image, stock, is_featured, is_addon) VALUES (:c,:n,:s,:d,:p,:i,:st,:f,0)")
-                ->execute([':c'=>$category?:null, ':n'=>$name, ':s'=>$slug, ':d'=>$desc, ':p'=>$price, ':i'=>$image, ':st'=>$stock, ':f'=>$featured]);
+            $pdo->prepare("INSERT INTO products (category_id, name, slug, description, price, sale_price, image, stock, is_featured, is_addon) VALUES (:c,:n,:s,:d,:p,:sp,:i,:st,:f,0)")
+                ->execute([':c'=>$category?:null, ':n'=>$name, ':s'=>$slug, ':d'=>$desc, ':p'=>$price, ':sp'=>$sale, ':i'=>$image, ':st'=>$stock, ':f'=>$featured]);
             $newId = (int)$pdo->lastInsertId();
             // Extra pictures submitted with the new product (URLs + uploads)
             $added = 0;
@@ -240,6 +244,9 @@ $heroIds = array_map('intval', array_column(
         <label>Price (₱)</label>
         <input type="number" name="price" step="0.01" min="0" value="<?php echo e($editing['price'] ?? ''); ?>" required>
 
+        <label>Sale price (₱) <small class="opt">(optional — must be below regular price)</small></label>
+        <input type="number" name="sale_price" step="0.01" min="0" value="<?php echo e($editing['sale_price'] ?? ''); ?>" placeholder="Leave blank for no sale">
+
         <label>Stock</label>
         <input type="number" name="stock" min="0" value="<?php echo e($editing['stock'] ?? '0'); ?>">
 
@@ -324,7 +331,14 @@ $heroIds = array_map('intval', array_column(
                     </div>
                 </td>
                 <td><?php echo e($p['category_name'] ?? '—'); ?></td>
-                <td>₱<?php echo number_format((float)$p['price'], 2); ?></td>
+                <td>
+                    <?php if (!empty($p['sale_price']) && (float)$p['sale_price'] > 0 && (float)$p['sale_price'] < (float)$p['price']): ?>
+                        <s style="color:#999;">₱<?php echo number_format((float)$p['price'], 2); ?></s><br>
+                        <strong style="color:#e04848;">₱<?php echo number_format((float)$p['sale_price'], 2); ?></strong>
+                    <?php else: ?>
+                        ₱<?php echo number_format((float)$p['price'], 2); ?>
+                    <?php endif; ?>
+                </td>
                 <td><span class="chip <?php echo $p['stock'] > 0 ? 'chip-in' : 'chip-out'; ?>"><?php echo (int)$p['stock']; ?> <?php echo $p['stock'] == 1 ? 'item' : 'items'; ?></span></td>
                 <td>
                     <?php if (in_array((int)$p['id'], $heroIds, true)): ?>

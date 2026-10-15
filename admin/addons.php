@@ -15,6 +15,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['form'] ?? '') === 'addon')
     $id    = (int)($_POST['id'] ?? 0);
     $name  = trim($_POST['name'] ?? '');
     $price = (float)($_POST['price'] ?? 0);
+    $sale  = trim($_POST['sale_price'] ?? '');
+    $sale  = $sale === '' ? null : (float)$sale;
     $stock = (int)($_POST['stock'] ?? 0);
     $cat   = (int)($_POST['category_id'] ?? 0);
     $image = trim($_POST['image'] ?? '');
@@ -46,16 +48,18 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['form'] ?? '') === 'addon')
 
     if ($name === '' || $price <= 0) {
         flash('error', 'Add-on name and a valid price are required.');
+    } elseif ($sale !== null && ($sale <= 0 || $sale >= $price)) {
+        flash('error', 'Sale price must be below the regular price (or left blank).');
     } elseif ($uploadError !== null) {
         flash('error', $uploadError);
     } else {
         if ($id > 0) {
-            $pdo->prepare("UPDATE products SET category_id=:c, name=:n, slug=:s, description=:d, price=:p, image=:i, stock=:st WHERE id=:id AND is_addon = 1")
-                ->execute([':c' => $cat ?: null, ':n' => $name, ':s' => $slug, ':d' => $desc, ':p' => $price, ':i' => $image, ':st' => $stock, ':id' => $id]);
+            $pdo->prepare("UPDATE products SET category_id=:c, name=:n, slug=:s, description=:d, price=:p, sale_price=:sp, image=:i, stock=:st WHERE id=:id AND is_addon = 1")
+                ->execute([':c' => $cat ?: null, ':n' => $name, ':s' => $slug, ':d' => $desc, ':p' => $price, ':sp' => $sale, ':i' => $image, ':st' => $stock, ':id' => $id]);
             flash('success', 'Add-on updated. It shows in “Complete your gift” right away.');
         } else {
-            $pdo->prepare("INSERT INTO products (category_id, name, slug, description, price, image, stock, is_featured, is_addon) VALUES (:c,:n,:s,:d,:p,:i,:st,0,1)")
-                ->execute([':c' => $cat ?: null, ':n' => $name, ':s' => $slug, ':d' => $desc, ':p' => $price, ':i' => $image, ':st' => $stock]);
+            $pdo->prepare("INSERT INTO products (category_id, name, slug, description, price, sale_price, image, stock, is_featured, is_addon) VALUES (:c,:n,:s,:d,:p,:sp,:i,:st,0,1)")
+                ->execute([':c' => $cat ?: null, ':n' => $name, ':s' => $slug, ':d' => $desc, ':p' => $price, ':sp' => $sale, ':i' => $image, ':st' => $stock]);
             flash('success', 'Add-on added. It shows in “Complete your gift” right away.');
         }
         redirect('addons.php');
@@ -101,6 +105,8 @@ if (isset($_GET['edit'])) {
                 <input type="number" name="price" step="0.01" min="0" value="<?php echo e($editing['price'] ?? ''); ?>" required>
             </div>
         </div>
+        <label>Sale price (₱) <small>(optional — must be below regular price)</small></label>
+        <input type="number" name="sale_price" step="0.01" min="0" value="<?php echo e($editing['sale_price'] ?? ''); ?>" placeholder="Leave blank for no sale">
         <label>Stock</label>
         <input type="number" name="stock" min="0" value="<?php echo e($editing['stock'] ?? '50'); ?>">
         <label>Shows on <small class="opt">(which occasions)</small></label>
@@ -156,7 +162,14 @@ if (isset($_GET['edit'])) {
                     </div>
                 </td>
                 <td><?php echo e($a['category_name'] ?? 'All occasions'); ?></td>
-                <td>₱<?php echo number_format((float)$a['price'], 2); ?></td>
+                <td>
+                    <?php if (!empty($a['sale_price']) && (float)$a['sale_price'] > 0 && (float)$a['sale_price'] < (float)$a['price']): ?>
+                        <s style="color:#999;">₱<?php echo number_format((float)$a['price'], 2); ?></s><br>
+                        <strong style="color:#e04848;">₱<?php echo number_format((float)$a['sale_price'], 2); ?></strong>
+                    <?php else: ?>
+                        ₱<?php echo number_format((float)$a['price'], 2); ?>
+                    <?php endif; ?>
+                </td>
                 <td><span class="chip <?php echo $a['stock'] > 0 ? 'chip-in' : 'chip-out'; ?>"><?php echo (int)$a['stock']; ?></span></td>
                 <td>
                     <div class="cell-actions">

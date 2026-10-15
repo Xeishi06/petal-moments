@@ -91,7 +91,7 @@ $defaultVid = cart_default_variant();
 // "Complete your gift" cross-sell: add-ons for this occasion (matching
 // category, or occasion-free), excluding this product
 $giftStmt = db()->prepare("
-    SELECT p.id, p.name, p.price, p.image
+    SELECT p.id, p.name, p.price, p.sale_price, p.image
     FROM products p
     WHERE p.is_addon = 1 AND p.is_active = 1 AND p.id != :id
       AND (p.category_id IS NULL OR p.category_id = :cid)
@@ -189,7 +189,7 @@ $detailSold = $detailSold[(int)$product['id']] ?? 0;
                 <?php endif; ?>
 
                 <h1><?php echo e($product['name'] ?? 'Arrangement'); ?></h1>
-                <div class="price" id="detailPrice">₱<?php echo number_format((float)($product['price'] ?? 0), 2); ?></div>
+                <div class="price" id="detailPrice"><?php if (on_sale($product)): ?><s class="was">₱<?php echo number_format((float)$product['price'], 2); ?></s> <?php endif; ?>₱<?php echo number_format(eff_price($product), 2); ?><?php if (on_sale($product)): ?> <span class="sale-tag big">SALE</span><?php endif; ?></div>
                 <p class="product-desc"><?php echo e($product['description'] ?: 'Handcrafted with fresh, carefully selected blooms.'); ?></p>
 
                 <p class="stock-status">
@@ -234,7 +234,7 @@ $detailSold = $detailSold[(int)$product['id']] ?? 0;
                 (function () {
                     var form = document.getElementById('detailForm');
                     if (!form) return;
-                    var base = <?php echo json_encode((float)($product['price'] ?? 0)); ?>;
+                    var base = <?php echo json_encode(eff_price($product)); ?>;
                     var priceEl = document.getElementById('detailPrice');
                     var dedInput = document.getElementById('dedication');
                     function peso(n) {
@@ -282,7 +282,7 @@ $detailSold = $detailSold[(int)$product['id']] ?? 0;
                     <img src="<?php echo e($g['image'] ?: 'https://images.unsplash.com/photo-1490750967868-88aa4486c946?auto=format&fit=crop&w=200&q=70'); ?>" alt="<?php echo e($g['name']); ?>">
                     <div class="addon-info">
                         <strong><?php echo e($g['name']); ?></strong>
-                        <span>₱<?php echo number_format((float)$g['price'], 2); ?></span>
+                        <span><?php if (on_sale($g)): ?><s class="was">₱<?php echo number_format((float)$g['price'], 2); ?></s> <?php endif; ?>₱<?php echo number_format(eff_price($g), 2); ?></span>
                     </div>
                     <?php if (is_logged_in()): ?>
                     <form method="post" action="cart.php?action=add">
@@ -318,7 +318,7 @@ $detailSold = $detailSold[(int)$product['id']] ?? 0;
                             <h3><?php echo e($rp['name']); ?></h3>
                             <p><?php echo e($rp['category_name'] ?? 'For any occasion'); ?><?php echo ($relSold[(int)$rp['id']] ?? 0) > 0 ? ' • 🔥 ' . (int)$relSold[(int)$rp['id']] . ' sold' : ''; ?><?php $rri = $relRatings[(int)$rp['id']] ?? ['avg' => 0, 'n' => 0]; echo $rri['n'] > 0 ? ' • ★ ' . number_format($rri['avg'], 1) : ''; ?></p>
                         </div>
-                        <strong>₱<?php echo number_format((float)$rp['price'], 2); ?></strong>
+                        <strong><?php if (on_sale($rp)): ?><s class="was">₱<?php echo number_format((float)$rp['price'], 2); ?></s> <?php endif; ?>₱<?php echo number_format(eff_price($rp), 2); ?><?php if (on_sale($rp)): ?> <span class="sale-tag">SALE</span><?php endif; ?></strong>
                     </div>
                 </article>
                 <?php endforeach; ?>

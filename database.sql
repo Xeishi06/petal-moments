@@ -50,6 +50,7 @@ CREATE TABLE products (
   slug         VARCHAR(140)   NOT NULL UNIQUE,
   description  TEXT           NULL,
   price        DECIMAL(10,2)  NOT NULL DEFAULT 0.00,
+  sale_price   DECIMAL(10,2)  NULL,
   image        VARCHAR(255)   NULL,
   stock        INT            NOT NULL DEFAULT 0,
   is_featured  TINYINT(1)     NOT NULL DEFAULT 0,

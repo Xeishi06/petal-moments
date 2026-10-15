@@ -38,7 +38,7 @@ if (!empty($source)) {
     $ids = array_unique(array_map(function ($ln) { return $ln['pid']; }, $source));
     $in  = implode(',', array_map('intval', $ids));
     $rows = [];
-    foreach (db()->query("SELECT id, name, price, stock FROM products WHERE id IN ($in) AND is_active = 1")->fetchAll() as $r) {
+    foreach (db()->query("SELECT id, name, price, sale_price, stock FROM products WHERE id IN ($in) AND is_active = 1")->fetchAll() as $r) {
         $rows[(int)$r['id']] = $r;
     }
     $kept = [];
@@ -49,7 +49,7 @@ if (!empty($source)) {
         if ((int)$r['stock'] > 0) { $qty = min($qty, (int)$r['stock']); }
         $vid = isset($variants[$ln['vid']]) ? $ln['vid'] : 0;
         $adj = $vid ? $variants[$vid]['adjust'] : 0;
-        $unit = (float)$r['price'] + $adj;
+        $unit = eff_price($r) + $adj;
         $subtotal = $unit * $qty;
         $cartTotal += $subtotal;
         $cartItems[] = array_merge($r, [
@@ -141,7 +141,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $pdo->beginTransaction();
         try {
             // Re-check stock inside the transaction to prevent overselling
-            $check = $pdo->prepare("SELECT id, price, stock FROM products WHERE id = :id FOR UPDATE");
+            $check = $pdo->prepare("SELECT id, price, sale_price, stock FROM products WHERE id = :id FOR UPDATE");
             $lines = [];
             $total = 0.0;
             foreach ($cartItems as $item) {
@@ -159,7 +159,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     if ($vr = $vRow->fetch()) { $vAdj = (float)$vr['price_adjust']; }
                     else { $vName = ''; }
                 }
-                $unitPrice = (float)$live['price'] + $vAdj;
+                $unitPrice = eff_price($live) + $vAdj;
                 $lineTotal = $unitPrice * (int)$item['quantity'];
                 $total += $lineTotal;
                 $lines[] = ['id' => $item['id'], 'qty' => (int)$item['quantity'], 'price' => $unitPrice, 'variant' => $vName, 'ded' => $item['dedication'], 'subtotal' => $lineTotal];
