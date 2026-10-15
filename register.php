@@ -27,9 +27,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             flash('error', 'An account with that email already exists.');
         } else {
             $hash = password_hash($password, PASSWORD_BCRYPT);
+            // Fresh-install bootstrap: the very first account becomes admin
+            $totalUsers = (int)db()->query("SELECT COUNT(*) FROM users")->fetchColumn();
+            $role = $totalUsers === 0 ? 'admin' : 'customer';
             $ins = db()->prepare("
                 INSERT INTO users (first_name, last_name, email, password, phone, address, role)
-                VALUES (:fn, :ln, :e, :pw, :ph, :ad, 'customer')
+                VALUES (:fn, :ln, :e, :pw, :ph, :ad, :role)
             ");
             $ins->execute([
                 ':fn' => $firstName,
@@ -38,8 +41,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 ':pw' => $hash,
                 ':ph' => $phone,
                 ':ad' => $address,
+                ':role' => $role,
             ]);
-            flash('success', 'Account created! You can now log in.');
+            if ($role === 'admin') {
+                flash('success', 'Welcome! As the first account, you are the administrator. You can now log in.');
+            } else {
+                flash('success', 'Account created! You can now log in.');
+            }
             redirect('login.php');
         }
     }
