@@ -16,7 +16,7 @@ if (isset($_GET['export']) && $_GET['export'] === 'csv') {
         FROM orders o JOIN users u ON u.id=o.user_id
         ORDER BY o.created_at DESC
     ")->fetchAll();
-    $payLabels = ['cash_on_delivery' => 'Cash on Delivery', 'gcash' => 'GCash', 'pay_on_pickup' => 'Pay on Pickup'];
+    $payLabels = ['cash_on_delivery' => 'COD', 'gcash' => 'GCash', 'pay_on_pickup' => 'Pickup'];
     header('Content-Type: text/csv; charset=utf-8');
     header('Content-Disposition: attachment; filename="petal-moments-orders-' . date('Y-m-d') . '.csv"');
     $out = fopen('php://output', 'w');
@@ -28,7 +28,7 @@ if (isset($_GET['export']) && $_GET['export'] === 'csv') {
         $ref = ($r['payment_method'] === 'gcash' && !empty($r['payment_ref'])) ? '="' . $r['payment_ref'] . '"' : '';
         fputcsv($out, [
             $r['id'],
-            date('Y-m-d', $dt),
+            date('n/j/y', $dt),
             date('H:i', $dt),
             ucfirst($r['status']),
             $r['total_amount'] - $r['delivery_fee'],

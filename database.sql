@@ -55,6 +55,7 @@ CREATE TABLE products (
   stock        INT            NOT NULL DEFAULT 0,
   is_featured  TINYINT(1)     NOT NULL DEFAULT 0,
   is_addon     TINYINT(1)     NOT NULL DEFAULT 0,
+  show_on      VARCHAR(255)   NULL,
   is_active    TINYINT(1)     NOT NULL DEFAULT 1,
   created_at   TIMESTAMP      NOT NULL DEFAULT CURRENT_TIMESTAMP,
   CONSTRAINT fk_products_category
@@ -294,11 +295,12 @@ INSERT INTO products (category_id, name, slug, description, price, image, stock,
 (4, 'Eternal Rest', 'eternal-rest', 'Placeholder arrangement - admin will update.', 1399.00, 'https://images.unsplash.com/photo-1562690868-60bbe7293e94?auto=format&fit=crop&w=800&q=80', 50, 0);
 
 -- Gifts & add-ons: no category (NULL) — found only via “Complete your gift” on product pages
-INSERT INTO products (category_id, name, slug, description, price, image, stock, is_featured, is_addon) VALUES
-(NULL, 'Chocolate Truffle Box', 'chocolate-truffle-box', 'A box of premium chocolate truffles - the perfect pair for any bouquet.', 499.00, 'https://images.unsplash.com/photo-1549007994-cb92caebd54b?auto=format&fit=crop&w=800&q=80', 50, 0, 1),
-(1, 'Happy Birthday Balloon Set', 'birthday-balloon-set', 'Festive birthday balloons to make the celebration pop.', 199.00, 'https://images.unsplash.com/photo-1530103862676-de8c9debad1d?auto=format&fit=crop&w=800&q=80', 50, 0, 1),
-(NULL, 'Mini Birthday Cake', 'mini-birthday-cake', 'A cute mini cake to go with your flowers.', 899.00, 'https://images.unsplash.com/photo-1578985545062-69928b1d9587?auto=format&fit=crop&w=800&q=80', 50, 0, 1),
-(NULL, 'Premium Chocolate Collection', 'premium-chocolate-collection', 'An indulgent chocolate collection for someone sweet.', 799.00, 'https://images.unsplash.com/photo-1511381939415-e44015466834?auto=format&fit=crop&w=800&q=80', 50, 0, 1);
+-- show_on lists occasion category ids, NULL = every occasion
+INSERT INTO products (category_id, name, slug, description, price, image, stock, is_featured, is_addon, show_on) VALUES
+(NULL, 'Chocolate Truffle Box', 'chocolate-truffle-box', 'A box of premium chocolate truffles - the perfect pair for any bouquet.', 499.00, 'https://images.unsplash.com/photo-1549007994-cb92caebd54b?auto=format&fit=crop&w=800&q=80', 50, 0, 1, NULL),
+(1, 'Happy Birthday Balloon Set', 'birthday-balloon-set', 'Festive birthday balloons to make the celebration pop.', 199.00, 'https://images.unsplash.com/photo-1530103862676-de8c9debad1d?auto=format&fit=crop&w=800&q=80', 50, 0, 1, '1'),
+(NULL, 'Mini Birthday Cake', 'mini-birthday-cake', 'A cute mini cake to go with your flowers.', 899.00, 'https://images.unsplash.com/photo-1578985545062-69928b1d9587?auto=format&fit=crop&w=800&q=80', 50, 0, 1, NULL),
+(NULL, 'Premium Chocolate Collection', 'premium-chocolate-collection', 'An indulgent chocolate collection for someone sweet.', 799.00, 'https://images.unsplash.com/photo-1511381939415-e44015466834?auto=format&fit=crop&w=800&q=80', 50, 0, 1, NULL);
 
 -- Variant presets (global customization options)
 INSERT INTO variants (name, price_adjust, needs_message) VALUES

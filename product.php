@@ -88,16 +88,16 @@ $allVariants = cart_variants();
 $showVariants = empty($product['is_addon']) && ($product['category_slug'] ?? '') !== 'gifts' && count($allVariants) > 1;
 $defaultVid = cart_default_variant();
 
-// "Complete your gift" cross-sell: add-ons for this occasion (matching
-// category, or occasion-free), excluding this product
+// "Complete your gift" cross-sell: add-ons targeted to this occasion
+// (show_on lists occasion ids; empty = every occasion)
 $giftStmt = db()->prepare("
     SELECT p.id, p.name, p.price, p.sale_price, p.image
     FROM products p
     WHERE p.is_addon = 1 AND p.is_active = 1 AND p.id != :id
-      AND (p.category_id IS NULL OR p.category_id = :cid)
+      AND (p.show_on IS NULL OR p.show_on = '' OR FIND_IN_SET(:cid, p.show_on))
     ORDER BY p.id LIMIT 4
 ");
-$giftStmt->execute([':id' => $product['id'], ':cid' => $product['category_id']]);
+$giftStmt->execute([':id' => $product['id'], ':cid' => $product['category_id'] ?? 0]);
 
 // Related flowers: same occasion, excluding this product and add-ons
 $relSql = "
