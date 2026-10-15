@@ -232,6 +232,12 @@ button {
   transform: translateY(-2px);
 }
 
+.btn:disabled {
+  opacity: 0.65;
+  cursor: wait;
+  transform: none;
+}
+
 .btn-small {
   min-height: 42px;
   padding-inline: 18px;

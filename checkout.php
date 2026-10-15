@@ -37,6 +37,13 @@ function quote_fee($subtotal, $isPickup, $flat, $freeMin)
     return $flat;
 }
 
+// One order token per session — rotated after every successful order.
+// A double-click or back-button resubmit reuses the first order instead of cloning it.
+if (empty($_SESSION['order_token'])) {
+    $_SESSION['order_token'] = bin2hex(random_bytes(16));
+    $_SESSION['order_tokens'] = [];
+}
+
 // Buy Now mode: check out ONLY the buy-now item, cart stays saved
 $isBuyNow = (($_GET['mode'] ?? '') === 'buynow') && !empty($_SESSION['buy_now']);
 $storeKey = $isBuyNow ? 'buy_now' : 'cart';
@@ -92,6 +99,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         flash('error', 'Session expired. Please try placing your order again.');
         redirect('checkout.php' . ($isBuyNow ? '?mode=buynow' : ''));
     }
+    // Idempotency: a double-click / back-button resubmit reuses the first order
+    $orderToken = $_POST['order_token'] ?? '';
+    if ($orderToken !== '' && isset($_SESSION['order_tokens'][$orderToken])) {
+        redirect('thanks.php?order=' . (int)$_SESSION['order_tokens'][$orderToken]);
+    }
     $fulfillment     = ($_POST['fulfillment'] ?? 'delivery') === 'pickup' ? 'pickup' : 'delivery';
     $deliveryAddress = trim($_POST['delivery_address'] ?? '');
     $deliveryDate    = trim($_POST['delivery_date'] ?? '');
@@ -145,6 +157,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $errors[] = 'Your order total is invalid. Please review your cart.';
     }
 
+    // Price-change guard: the page may have sat open while prices/fees moved.
+    // Recompute live and refuse to charge a different number than shown.
+    $liveFee = quote_fee($cartTotal, $fulfillment === 'pickup', (float)setting('delivery_fee', 0), (float)setting('free_delivery_min', 0));
+    $liveGrand = $cartTotal + $liveFee;
+    $expectedGrand = isset($_POST['expected_grand']) ? (float)$_POST['expected_grand'] : -1;
+    if ($expectedGrand >= 0 && abs($liveGrand - $expectedGrand) > 0.01) {
+        $errors[] = 'Prices changed while you were checking out. Please review the updated total below before placing your order.';
+    }
+
     if (!empty($errors)) {
         foreach ($errors as $msg) { flash('error', $msg); }
     } else {
@@ -176,6 +197,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $lines[] = ['id' => $item['id'], 'qty' => (int)$item['quantity'], 'price' => $unitPrice, 'variant' => $vName, 'ded' => $item['dedication'], 'subtotal' => $lineTotal];
             }
             $orderFee = quote_fee($total, $fulfillment === 'pickup', (float)setting('delivery_fee', 0), (float)setting('free_delivery_min', 0));
+            if (abs(($total + $orderFee) - $liveGrand) > 0.01) {
+                throw new Exception('Totals shifted during checkout. Please review and try again.');
+            }
             $grandTotal = $total + $orderFee;
             $stmt = $pdo->prepare("
                 INSERT INTO orders (user_id, total_amount, delivery_fee, delivery_address, delivery_date, delivery_notes, payment_method, payment_ref, fulfillment, status)
@@ -218,12 +242,19 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $pdo->commit();
 
             $_SESSION[$storeKey] = [];
+            $_SESSION['order_tokens'][$orderToken] = $orderId;
+            $_SESSION['order_tokens'] = array_slice($_SESSION['order_tokens'], -20, 20, true);
+            $_SESSION['order_token'] = bin2hex(random_bytes(16));
             flash('success', 'Thank you! Your order has been placed.');
             redirect('thanks.php?order=' . $orderId);
         } catch (Exception $ex) {
             $pdo->rollBack();
             $msg = $ex->getMessage();
-            flash('error', (strpos($msg, 'only has') !== false) ? $msg : 'There was a problem placing your order.');
+            if (strpos($msg, 'only has') !== false || strpos($msg, 'Totals shifted') !== false) {
+                flash('error', $msg);
+            } else {
+                flash('error', 'There was a problem placing your order.');
+            }
         }
     }
 }
@@ -242,6 +273,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             <div class="checkout-form">
                 <form method="post" action="checkout.php<?php echo $isBuyNow ? '?mode=buynow' : ''; ?>" id="checkoutForm" novalidate>
                     <input type="hidden" name="csrf" value="<?php echo e(csrf_token()); ?>">
+                    <input type="hidden" name="order_token" value="<?php echo e($_SESSION['order_token']); ?>">
+                    <input type="hidden" name="expected_grand" id="expectedGrand" value="<?php echo number_format($cartTotal + quote_fee($cartTotal, false, $feeFlat, $feeFreeMin), 2, '.', ''); ?>">
                     <div class="form-errors" id="checkoutErrors" hidden></div>
                     <label>How do you want to get your flowers?</label>
                     <div class="fulfill-row" role="radiogroup" aria-label="Fulfillment method">
@@ -289,7 +322,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         <input type="text" name="payment_ref" id="paymentRef" inputmode="numeric" maxlength="20" placeholder="13-digit number from your receipt">
                     </div>
 
-                    <button type="submit" class="btn btn-primary">Place Order</button>
+                    <button type="submit" class="btn btn-primary" id="placeOrderBtn">Place Order</button>
                 </form>
                 <script>
                 (function () {
@@ -322,6 +355,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         var isGcash = paySel.value === 'gcash';
                         gcashBox.hidden = !isGcash;
                         refInput.required = isGcash;
+                        var sp = document.getElementById('sumPay');
+                        if (sp && paySel.selectedOptions.length) { sp.textContent = paySel.selectedOptions[0].textContent; }
                     }
                     form.querySelectorAll('input[name="fulfillment"]').forEach(function (r) {
                         r.addEventListener('change', function () {
@@ -369,6 +404,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                             showErrors(msgs);
                         } else {
                             errBox.hidden = true;
+                            // Lock the button: no double-click double orders
+                            var btn = document.getElementById('placeOrderBtn');
+                            if (btn) {
+                                btn.disabled = true;
+                                btn.textContent = 'Placing your order…';
+                            }
                         }
                     });
                 })();
@@ -384,6 +425,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     </div>
                 <?php endforeach; ?>
                 <?php $summaryFee = quote_fee($cartTotal, false, $feeFlat, $feeFreeMin); ?>
+                <div class="summary-line">
+                    <span>Getting it by</span>
+                    <span id="sumFulfill">🚚 Delivery</span>
+                </div>
+                <div class="summary-line">
+                    <span>Paying with</span>
+                    <span id="sumPay">Cash on Delivery</span>
+                </div>
                 <div class="summary-line" id="feeLine"<?php echo $summaryFee <= 0 ? ' hidden' : ''; ?>>
                     <span>Delivery fee<?php echo ($feeFreeMin > 0) ? ' <small>(free over ₱' . number_format($feeFreeMin, 2) . ')</small>' : ''; ?></span>
                     <span id="feeAmt">₱<?php echo number_format($summaryFee, 2); ?></span>
@@ -414,6 +463,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     grandEl.textContent = peso(subtotal + fee);
                     var gamt = document.getElementById('gcashAmt');
                     if (gamt) { gamt.textContent = peso(subtotal + fee); }
+                    var exp = document.getElementById('expectedGrand');
+                    if (exp) { exp.value = (subtotal + fee).toFixed(2); }
+                    var sf = document.getElementById('sumFulfill');
+                    if (sf) { sf.textContent = pickup ? '🏃 Pickup' : '🚚 Delivery'; }
+                    var sp = document.getElementById('sumPay');
+                    var pSel = document.getElementById('paymentMethod');
+                    if (sp && pSel && pSel.selectedOptions.length) { sp.textContent = pSel.selectedOptions[0].textContent; }
                 }
                 form.querySelectorAll('input[name="fulfillment"]').forEach(function (r) {
                     r.addEventListener('change', refreshTotals);
