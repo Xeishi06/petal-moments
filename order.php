@@ -159,7 +159,7 @@ $history = $history->fetchAll();
                     <div class="summary-line"><span>Deliver to</span><span><?php echo e($order['delivery_address'] ?? '—'); ?></span></div>
                 <?php endif; ?>
                 <div class="summary-line"><span>Date</span><span><?php echo $order['delivery_date'] ? e(date('M j, Y', strtotime($order['delivery_date']))) : '—'; ?></span></div>
-                <div class="summary-line"><span>Payment</span><span><?php echo e(strtoupper(str_replace('_', ' ', $order['payment_method']))); ?></span></div>
+                <div class="summary-line"><span>Payment</span><span><?php echo e(pay_label($order['payment_method'])); ?></span></div>
                 <?php if ($order['payment_method'] === 'gcash' && !empty($order['payment_ref'])): ?>
                     <div class="summary-line"><span>GCash ref</span><span><?php echo e($order['payment_ref']); ?></span></div>
                 <?php endif; ?>

@@ -16,7 +16,7 @@ if (isset($_GET['export']) && $_GET['export'] === 'csv') {
         FROM orders o JOIN users u ON u.id=o.user_id
         ORDER BY o.created_at DESC
     ")->fetchAll();
-    $payLabels = ['cash_on_delivery' => 'COD', 'gcash' => 'GCash', 'pay_on_pickup' => 'Pickup'];
+    $payLabels = ['cash_on_delivery' => 'COD', 'gcash' => 'GCash', 'pay_on_pickup' => 'Pickup', 'card' => 'Card'];
     header('Content-Type: text/csv; charset=utf-8');
     header('Content-Disposition: attachment; filename="petal-moments-orders-' . date('Y-m-d') . '.csv"');
     $out = fopen('php://output', 'w');
@@ -36,7 +36,7 @@ if (isset($_GET['export']) && $_GET['export'] === 'csv') {
             $r['total_amount'],
             ucfirst($r['fulfillment']),
             $r['delivery_address'],
-            $r['delivery_date'],
+            $r['delivery_date'] ? date('n/j/y', strtotime($r['delivery_date'])) : '',
             $payLabels[$r['payment_method']] ?? $r['payment_method'],
             $ref,
             trim(($r['first_name'] ?? '') . ' ' . ($r['last_name'] ?? '')),
@@ -146,7 +146,7 @@ $orders = $oq->fetchAll();
                 </td>
                 <td><?php echo (int)$o['items']; ?><?php if (!empty($o['item_names'])): ?><br><small title="<?php echo e($o['item_names']); ?>"><?php echo e(mb_strimwidth($o['item_names'], 0, 42, '…')); ?></small><?php endif; ?></td>
                 <td>₱<?php echo number_format((float)$o['total_amount'], 2); ?></td>
-                <td><?php echo e(strtoupper(str_replace('_',' ',$o['payment_method']))); ?><?php echo ($o['payment_method'] === 'gcash' && !empty($o['payment_ref'])) ? ' • Ref: ' . e($o['payment_ref']) : ''; ?></td>
+                <td><?php echo e(pay_label($o['payment_method'])); ?><?php echo ($o['payment_method'] === 'gcash' && !empty($o['payment_ref'])) ? ' • Ref: ' . e($o['payment_ref']) : ''; ?></td>
                 <td><span class="badge badge-<?php echo e($o['status']); ?>"><?php echo ucfirst(e($o['status'])); ?></span></td>
                 <td><?php echo date('M j, Y', strtotime($o['created_at'])); ?></td>
                 <td>

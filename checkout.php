@@ -100,14 +100,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $paymentRef      = trim($_POST['payment_ref'] ?? '');
 
     $payOptions = $fulfillment === 'pickup'
-        ? ['pay_on_pickup' => 'Pay on pickup', 'gcash' => 'GCash']
-        : ['cash_on_delivery' => 'Cash on Delivery', 'gcash' => 'GCash'];
+        ? ['pay_on_pickup' => 'Pay on pickup', 'card' => 'Debit/Credit Card', 'gcash' => 'GCash']
+        : ['cash_on_delivery' => 'Cash on Delivery', 'card' => 'Debit/Credit Card', 'gcash' => 'GCash'];
 
     $errors = [];
     if (!isset($payOptions[$paymentMethod])) {
         $errors[] = $fulfillment === 'pickup'
-            ? 'Please choose Pay on pickup or GCash.'
-            : 'Please choose Cash on Delivery or GCash.';
+            ? 'Please choose Pay on pickup, Card, or GCash.'
+            : 'Please choose Cash on Delivery, Card, or GCash.';
     }
     if ($paymentMethod === 'gcash') {
         if ($paymentRef === '') {
@@ -278,6 +278,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     <select name="payment_method" id="paymentMethod">
                         <option value="cash_on_delivery" data-for="delivery">Cash on Delivery</option>
                         <option value="pay_on_pickup" data-for="pickup">Pay on pickup</option>
+                        <option value="card" data-for="both">Debit/Credit Card</option>
                         <option value="gcash" data-for="both">GCash</option>
                     </select>
 

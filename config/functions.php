@@ -174,6 +174,17 @@ function on_sale($p)
     return eff_price($p) < (float)($p['price'] ?? 0);
 }
 
+function pay_label($method)
+{
+    $labels = [
+        'cash_on_delivery' => 'Cash on Delivery',
+        'pay_on_pickup'    => 'Pay on Pickup',
+        'card'             => 'Debit/Credit Card',
+        'gcash'            => 'GCash',
+    ];
+    return $labels[$method] ?? ucwords(str_replace('_', ' ', (string)$method));
+}
+
 // Units sold per product (paid pipeline only — cancelled excluded)
 function product_sold_counts($ids)
 {

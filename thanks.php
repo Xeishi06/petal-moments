@@ -75,7 +75,7 @@ $toReview = array_map(function ($t) {
             <?php else: ?>
             <p><strong>Delivery to:</strong> <?php echo e($order['delivery_address'] ?? '—'); ?></p>
             <?php endif; ?>
-            <p><strong>Payment:</strong> <?php echo e(strtoupper(str_replace('_', ' ', $order['payment_method']))); ?><?php echo ($order['payment_method'] === 'gcash' && !empty($order['payment_ref'])) ? ' • Ref: ' . e($order['payment_ref']) : ''; ?></p>
+            <p><strong>Payment:</strong> <?php echo e(pay_label($order['payment_method'])); ?><?php echo ($order['payment_method'] === 'gcash' && !empty($order['payment_ref'])) ? ' • Ref: ' . e($order['payment_ref']) : ''; ?></p>
 
             <a class="btn btn-primary" href="shop.php">Continue Shopping</a>
             <a class="btn btn-dark" href="events.php">Plan an Event</a>
