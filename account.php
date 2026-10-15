@@ -149,8 +149,8 @@ $myTheme = $user['theme'] ?? 'light';
         </div>
 
         <div class="hub-stats">
-            <a class="hub-stat" href="#orders"><span><?php echo count($myOrders); ?></span><small>Orders</small></a>
-            <a class="hub-stat" href="#orders"><span>₱<?php echo number_format($statSpent, 2); ?></span><small>Total spent</small></a>
+            <a class="hub-stat" href="my-orders.php"><span><?php echo count($myOrders); ?></span><small>Orders</small></a>
+            <a class="hub-stat" href="my-orders.php"><span>₱<?php echo number_format($statSpent, 2); ?></span><small>Total spent</small></a>
             <a class="hub-stat" href="wishlist.php"><span><?php echo $statFav; ?></span><small>Favorites</small></a>
             <a class="hub-stat" href="#reviews"><span><?php echo $statRev; ?></span><small>Reviews</small></a>
         </div>
@@ -160,7 +160,7 @@ $myTheme = $user['theme'] ?? 'light';
             <a href="#security">Security</a>
             <a href="#payments">Payments</a>
             <a href="#appearance">Appearance</a>
-            <a href="#orders">Orders</a>
+            <a href="my-orders.php">Orders →</a>
             <a href="#favorites">Favorites</a>
             <a href="#reviews">Reviews</a>
         </div>
@@ -259,37 +259,8 @@ $myTheme = $user['theme'] ?? 'light';
         </div>
 
         <div class="account-wide">
-            <div class="account-orders" id="orders">
-                <h3>My Orders</h3>
-                <?php if (empty($myOrders)): ?>
-                    <p class="empty-state">You have no orders yet. <a href="shop.php">Start shopping →</a></p>
-                <?php else: ?>
-                    <table class="cart-table">
-                        <thead>
-                            <tr><th></th><th>Order #</th><th>Total</th><th>Status</th><th>Date</th><th></th></tr>
-                        </thead>
-                        <tbody>
-                        <?php foreach ($myOrders as $o): ?>
-                            <tr>
-                                <td><a href="order.php?id=<?php echo (int)$o['id']; ?>"><img class="order-thumb" src="<?php echo e($o['thumb'] ?: 'https://images.unsplash.com/photo-1490750967868-88aa4486c946?auto=format&fit=crop&w=200&q=70'); ?>" alt=""></a></td>
-                                <td><a href="order.php?id=<?php echo (int)$o['id']; ?>">#<?php echo (int)$o['id']; ?></a></td>
-                                <td>₱<?php echo number_format((float)$o['total_amount'], 2); ?></td>
-                                <td><span class="badge badge-<?php echo e($o['status']); ?>"><?php echo ucfirst(e($o['status'])); ?></span></td>
-                                <td><?php echo date('M j, Y', strtotime($o['created_at'])); ?></td>
-                                <td>
-                                    <form method="post" action="order.php?id=<?php echo (int)$o['id']; ?>" style="margin:0;">
-                                        <input type="hidden" name="form" value="reorder">
-                                        <input type="hidden" name="csrf" value="<?php echo e(csrf_token()); ?>">
-                                        <button type="submit" class="remove-link" style="border:0;background:none;cursor:pointer;">↻ Reorder</button>
-                                    </form>
-                                </td>
-                            </tr>
-                        <?php endforeach; ?>
-                        </tbody>
-                    </table>
-                <?php endif; ?>
-
-                <h3 id="reviews" style="margin-top:28px;">My Reviews</h3>
+            <div class="account-orders">
+                <h3 id="reviews">My Reviews</h3>
                 <?php if (empty($myReviews)): ?>
                     <p class="empty-state">No reviews yet — they appear here after you rate your flowers.</p>
                 <?php else: ?>

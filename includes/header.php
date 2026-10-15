@@ -51,6 +51,7 @@ $active    = $active ?? '';
             <a href="index.php#how">How It Works</a>
             <a href="contact.php">Contact</a>
             <?php if (is_logged_in()): ?>
+                <a href="my-orders.php">Your Orders</a>
                 <a href="account.php">My Account</a>
             <?php endif; ?>
             <span class="nav-divider nav-mobile-only" aria-hidden="true"></span>
