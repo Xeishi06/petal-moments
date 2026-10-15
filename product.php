@@ -39,6 +39,9 @@ $giftStmt = db()->prepare("
 $giftStmt->execute([':id' => $product['id']]);
 $gifts = $giftStmt->fetchAll();
 
+// Category hopper above the product
+$hopCats = db()->query("SELECT name, slug FROM categories WHERE is_active = 1 ORDER BY id")->fetchAll();
+
 // Gallery: main photo + extra pictures
 $galStmt = db()->prepare("SELECT id, image FROM product_images WHERE product_id = :id ORDER BY sort_order ASC, id ASC");
 $galStmt->execute([':id' => $product['id']]);
@@ -49,7 +52,12 @@ $mainPhoto = $product['image'] ?: 'https://images.unsplash.com/photo-14907509678
 
 <section class="section">
     <div class="container">
-        <p class="back-link"><a href="shop.php">← Back to shop</a></p>
+        <nav class="cat-hopper" aria-label="Browse categories">
+            <a href="shop.php">All</a>
+            <?php foreach ($hopCats as $hc): ?>
+            <a href="shop.php?category=<?php echo e($hc['slug']); ?>"<?php echo ($product['category_slug'] ?? '') === $hc['slug'] ? ' class="current" aria-current="page"' : ''; ?>><?php echo e($hc['name']); ?></a>
+            <?php endforeach; ?>
+        </nav>
 
         <div class="product-detail-grid<?php echo !empty($gifts) ? ' has-addons' : ''; ?>">
             <div class="product-detail-image">

@@ -1447,6 +1447,30 @@ a.floating-card:hover {
   margin-bottom: 4px;
 }
 .opt { font-weight: 400; color: var(--muted); font-size: 0.72rem; }
+/* Category hopper above product */
+.cat-hopper {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 22px;
+}
+.cat-hopper a {
+  padding: 8px 18px;
+  border-radius: 999px;
+  border: 1.5px solid var(--border);
+  background: #fff;
+  color: var(--muted);
+  font-size: 0.8rem;
+  font-weight: 600;
+  text-decoration: none;
+  transition: border-color 0.15s ease, color 0.15s ease, background 0.15s ease;
+}
+.cat-hopper a:hover { border-color: var(--rose); color: var(--rose-dark); }
+.cat-hopper a.current {
+  border-color: var(--rose);
+  background: #fdf3f1;
+  color: var(--rose-dark);
+}
 .cross-sell { margin-top: 70px; }
 .cross-grid { grid-template-columns: repeat(4, 1fr); }
 /* Compact gift add-ons */
