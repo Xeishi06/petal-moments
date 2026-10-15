@@ -45,7 +45,7 @@ $gifts = $giftStmt->fetchAll();
     <div class="container">
         <p class="back-link"><a href="shop.php">← Back to shop</a></p>
 
-        <div class="product-detail-grid">
+        <div class="product-detail-grid<?php echo !empty($gifts) ? ' has-addons' : ''; ?>">
             <div class="product-detail-image">
                 <img src="<?php echo e($product['image'] ?: 'https://images.unsplash.com/photo-1490750967868-88aa4486c946?auto=format&fit=crop&w=900&q=80'); ?>" alt="<?php echo e($product['name'] ?? 'Arrangement'); ?>">
             </div>
@@ -134,34 +134,34 @@ $gifts = $giftStmt->fetchAll();
                     ♥ Save to Favorites
                 </button>
                 <?php endif; ?>
-
-                <?php if (!empty($gifts)): ?>
-                <div class="addon-box">
-                    <div class="addon-head">
-                        <strong>Complete your gift</strong>
-                        <small>Small extras, big smiles</small>
-                    </div>
-                    <?php foreach ($gifts as $g): ?>
-                    <div class="addon-row">
-                        <img src="<?php echo e($g['image'] ?: 'https://images.unsplash.com/photo-1490750967868-88aa4486c946?auto=format&fit=crop&w=200&q=70'); ?>" alt="<?php echo e($g['name']); ?>">
-                        <div class="addon-info">
-                            <strong><?php echo e($g['name']); ?></strong>
-                            <span>₱<?php echo number_format((float)$g['price'], 2); ?></span>
-                        </div>
-                        <?php if (is_logged_in()): ?>
-                        <form method="post" action="cart.php?action=add">
-                            <input type="hidden" name="product_id" value="<?php echo (int)$g['id']; ?>">
-                            <input type="hidden" name="quantity" value="1">
-                            <button type="submit" class="btn btn-dark btn-small">Add +</button>
-                        </form>
-                        <?php else: ?>
-                        <a class="btn btn-dark btn-small" href="product.php?id=<?php echo (int)$g['id']; ?>">View</a>
-                        <?php endif; ?>
-                    </div>
-                    <?php endforeach; ?>
-                </div>
-                <?php endif; ?>
             </div>
+
+            <?php if (!empty($gifts)): ?>
+            <aside class="addon-box addon-side">
+                <div class="addon-head">
+                    <strong>Complete your gift</strong>
+                    <small>Small extras, big smiles</small>
+                </div>
+                <?php foreach ($gifts as $g): ?>
+                <div class="addon-row">
+                    <img src="<?php echo e($g['image'] ?: 'https://images.unsplash.com/photo-1490750967868-88aa4486c946?auto=format&fit=crop&w=200&q=70'); ?>" alt="<?php echo e($g['name']); ?>">
+                    <div class="addon-info">
+                        <strong><?php echo e($g['name']); ?></strong>
+                        <span>₱<?php echo number_format((float)$g['price'], 2); ?></span>
+                    </div>
+                    <?php if (is_logged_in()): ?>
+                    <form method="post" action="cart.php?action=add">
+                        <input type="hidden" name="product_id" value="<?php echo (int)$g['id']; ?>">
+                        <input type="hidden" name="quantity" value="1">
+                        <button type="submit" class="btn btn-dark btn-small">Add +</button>
+                    </form>
+                    <?php else: ?>
+                    <a class="btn btn-dark btn-small" href="product.php?id=<?php echo (int)$g['id']; ?>">View</a>
+                    <?php endif; ?>
+                </div>
+                <?php endforeach; ?>
+            </aside>
+            <?php endif; ?>
         </div>
     </div>
 </section>
