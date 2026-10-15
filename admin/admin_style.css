@@ -386,6 +386,21 @@ button { cursor: pointer; }
   display: block;
 }
 .img-preview small { color: var(--muted); font-size: 0.75rem; }
+/* Gallery manager */
+.gallery-manage { display: flex; flex-wrap: wrap; gap: 10px; margin: 8px 0; }
+.gallery-manage-item { position: relative; }
+.gallery-manage-item img {
+  width: 84px; height: 84px; object-fit: cover;
+  border-radius: 10px; border: 1px solid var(--border); display: block;
+}
+.gallery-manage-item a {
+  position: absolute; top: -8px; right: -8px;
+  width: 24px; height: 24px; border-radius: 50%;
+  background: #b34f4f; color: #fff; font-size: 0.7rem;
+  display: inline-flex; align-items: center; justify-content: center;
+  text-decoration: none;
+}
+.gallery-add { margin-top: 18px; padding-top: 16px; border-top: 1px dashed var(--border); }
 .admin-form .checkbox { display: flex; align-items: center; gap: 9px; margin-top: 14px; }
 .admin-form .checkbox input { width: auto; }
 .admin-form .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }

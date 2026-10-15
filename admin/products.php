@@ -64,6 +64,52 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['form'] ?? '') === 'product
     }
 }
 
+if (isset($_GET['delimg'])) {
+    $pdo->prepare("DELETE FROM product_images WHERE id = :id")->execute([':id' => (int)$_GET['delimg']]);
+    flash('success', 'Gallery picture removed.');
+    redirect('products.php' . (isset($_GET['edit']) ? '?edit=' . (int)$_GET['edit'] : ''));
+}
+
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['form'] ?? '') === 'gallery') {
+    $gid = (int)($_POST['id'] ?? 0);
+    $gurl = trim($_POST['gallery_url'] ?? '');
+    if ($gid > 0) {
+        if (!empty($_FILES['gallery_file']['name']) && ($_FILES['gallery_file']['error'] ?? UPLOAD_ERR_NO_FILE) === UPLOAD_ERR_OK) {
+            $allowed = ['jpg' => 'image/jpeg', 'jpeg' => 'image/jpeg', 'png' => 'image/png', 'webp' => 'image/webp', 'gif' => 'image/gif'];
+            $ext = strtolower(pathinfo($_FILES['gallery_file']['name'], PATHINFO_EXTENSION));
+            $finfo = new finfo(FILEINFO_MIME_TYPE);
+            $mime = $finfo->file($_FILES['gallery_file']['tmp_name']);
+            if (!isset($allowed[$ext]) || $allowed[$ext] !== $mime) {
+                flash('error', 'Please pick a JPG, PNG, WEBP or GIF image.');
+                redirect('products.php?edit=' . $gid);
+            } elseif ($_FILES['gallery_file']['size'] > 2 * 1024 * 1024) {
+                flash('error', 'Image must be under 2MB.');
+                redirect('products.php?edit=' . $gid);
+            } else {
+                $filename = 'gallery-' . $gid . '-' . time() . '.' . $ext;
+                $destDir = __DIR__ . '/../uploads/products';
+                if (!is_dir($destDir)) { mkdir($destDir, 0755, true); }
+                if (move_uploaded_file($_FILES['gallery_file']['tmp_name'], $destDir . '/' . $filename)) {
+                    $gurl = 'uploads/products/' . $filename;
+                } else {
+                    flash('error', 'Could not save uploaded file.');
+                    redirect('products.php?edit=' . $gid);
+                }
+            }
+        }
+        if ($gurl === '') {
+            flash('error', 'Paste an image URL or pick a file.');
+        } else {
+            $ord = $pdo->prepare("SELECT COALESCE(MAX(sort_order), 0) + 1 FROM product_images WHERE product_id = :id");
+            $ord->execute([':id' => $gid]);
+            $pdo->prepare("INSERT INTO product_images (product_id, image, sort_order) VALUES (:pid, :img, :ord)")
+                ->execute([':pid' => $gid, ':img' => $gurl, ':ord' => (int)$ord->fetchColumn()]);
+            flash('success', 'Gallery picture added.');
+        }
+    }
+    redirect('products.php' . ($gid > 0 ? '?edit=' . $gid : ''));
+}
+
 $active = 'products';
 $adminTitle = 'Products | Petal Moments Admin';
 include __DIR__ . '/includes/admin_header.php';
@@ -76,10 +122,16 @@ $products = $pdo->query("
 ")->fetchAll();
 
 $editing = null;
+$galleryEdit = [];
 if (isset($_GET['edit'])) {
     $st = $pdo->prepare("SELECT * FROM products WHERE id=:id");
     $st->execute([':id'=>(int)$_GET['edit']]);
     $editing = $st->fetch();
+    if ($editing) {
+        $gs = $pdo->prepare("SELECT * FROM product_images WHERE product_id = :id ORDER BY sort_order ASC, id ASC");
+        $gs->execute([':id' => (int)$editing['id']]);
+        $galleryEdit = $gs->fetchAll();
+    }
 }
 
 // All featured (active) products rotate in the homepage hero slideshow
@@ -134,6 +186,23 @@ $heroIds = array_map('intval', array_column(
             <div class="img-preview"><img src="<?php echo e($editing['image']); ?>" alt="Product preview"><small>Current image</small></div>
         <?php endif; ?>
 
+        <?php if ($editing): ?>
+        <label>More pictures (shown as clickable thumbnails)</label>
+        <?php if (!empty($galleryEdit)): ?>
+            <div class="gallery-manage">
+                <?php foreach ($galleryEdit as $gi): ?>
+                <div class="gallery-manage-item">
+                    <img src="<?php echo e($gi['image']); ?>" alt="">
+                    <a href="products.php?edit=<?php echo (int)$editing['id']; ?>&delimg=<?php echo (int)$gi['id']; ?>"
+                       onclick="return confirm('Remove this picture?');" aria-label="Remove picture">✕</a>
+                </div>
+                <?php endforeach; ?>
+            </div>
+        <?php else: ?>
+            <p class="empty-note">No extra pictures yet.</p>
+        <?php endif; ?>
+        <?php endif; ?>
+
         <label>Description</label>
         <textarea name="description" rows="3"><?php echo e($editing['description'] ?? ''); ?></textarea>
 
@@ -144,6 +213,19 @@ $heroIds = array_map('intval', array_column(
             <?php if ($editing): ?><a class="btn btn-light" href="products.php">Cancel</a><?php endif; ?>
         </div>
     </form>
+    <?php if ($editing): ?>
+    <form method="post" action="products.php?edit=<?php echo (int)$editing['id']; ?>" class="admin-form gallery-add" enctype="multipart/form-data">
+        <input type="hidden" name="form" value="gallery">
+        <input type="hidden" name="id" value="<?php echo (int)$editing['id']; ?>">
+        <label>Add another picture</label>
+        <input type="text" name="gallery_url" placeholder="https://...">
+        <div class="or-divider">OR</div>
+        <input type="file" name="gallery_file" accept="image/jpeg,image/png,image/webp,image/gif">
+        <div class="form-actions">
+            <button type="submit" class="btn btn-dark">Add Picture</button>
+        </div>
+    </form>
+    <?php endif; ?>
 </div>
 
 <div class="admin-card">

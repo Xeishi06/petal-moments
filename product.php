@@ -38,6 +38,12 @@ $giftStmt = db()->prepare("
 ");
 $giftStmt->execute([':id' => $product['id']]);
 $gifts = $giftStmt->fetchAll();
+
+// Gallery: main photo + extra pictures
+$galStmt = db()->prepare("SELECT id, image FROM product_images WHERE product_id = :id ORDER BY sort_order ASC, id ASC");
+$galStmt->execute([':id' => $product['id']]);
+$gallery = array_column($galStmt->fetchAll(), 'image');
+$mainPhoto = $product['image'] ?: 'https://images.unsplash.com/photo-1490750967868-88aa4486c946?auto=format&fit=crop&w=900&q=80';
 ?>
 <?php $pageTitle = e($product['name'] ?? 'Arrangement') . ' | Petal Moments'; include __DIR__ . '/includes/header.php'; ?>
 
@@ -47,7 +53,39 @@ $gifts = $giftStmt->fetchAll();
 
         <div class="product-detail-grid<?php echo !empty($gifts) ? ' has-addons' : ''; ?>">
             <div class="product-detail-image">
-                <img src="<?php echo e($product['image'] ?: 'https://images.unsplash.com/photo-1490750967868-88aa4486c946?auto=format&fit=crop&w=900&q=80'); ?>" alt="<?php echo e($product['name'] ?? 'Arrangement'); ?>">
+                <img id="galleryMain" src="<?php echo e($mainPhoto); ?>" alt="<?php echo e($product['name'] ?? 'Arrangement'); ?>">
+                <?php if (!empty($gallery)): ?>
+                <div class="gallery-thumbs" role="listbox" aria-label="More pictures">
+                    <button type="button" class="gallery-thumb picked" data-src="<?php echo e($mainPhoto); ?>" aria-label="Main photo">
+                        <img src="<?php echo e($mainPhoto); ?>" alt="">
+                    </button>
+                    <?php foreach ($gallery as $gimg): ?>
+                    <button type="button" class="gallery-thumb" data-src="<?php echo e($gimg); ?>" aria-label="View picture">
+                        <img src="<?php echo e($gimg); ?>" alt="" loading="lazy">
+                    </button>
+                    <?php endforeach; ?>
+                </div>
+                <script>
+                (function () {
+                    var main = document.getElementById('galleryMain');
+                    var thumbs = document.querySelectorAll('.gallery-thumb');
+                    if (!main || !thumbs.length) return;
+                    thumbs.forEach(function (t) {
+                        t.addEventListener('click', function () {
+                            if (main.getAttribute('src') === t.dataset.src) return;
+                            main.style.opacity = '0';
+                            setTimeout(function () {
+                                main.src = t.dataset.src;
+                                main.onload = function () { main.style.opacity = '1'; };
+                                setTimeout(function () { main.style.opacity = '1'; }, 300);
+                            }, 180);
+                            thumbs.forEach(function (x) { x.classList.remove('picked'); });
+                            t.classList.add('picked');
+                        });
+                    });
+                })();
+                </script>
+                <?php endif; ?>
             </div>
 
             <div class="product-detail-info">
@@ -163,7 +201,6 @@ $gifts = $giftStmt->fetchAll();
             </aside>
             <?php endif; ?>
         </div>
-    </div>
 </section>
 
 <?php include __DIR__ . '/includes/footer.php'; ?>

@@ -163,6 +163,20 @@ CREATE TABLE event_inquiries (
 ) ENGINE=InnoDB;
 
 -- ------------------------------------------------------------
+-- PRODUCT IMAGES (extra gallery pictures per product)
+-- ------------------------------------------------------------
+DROP TABLE IF EXISTS product_images;
+CREATE TABLE product_images (
+  id          INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  product_id  INT UNSIGNED   NOT NULL,
+  image       VARCHAR(255)   NOT NULL,
+  sort_order  INT            NOT NULL DEFAULT 0,
+  CONSTRAINT fk_pimg_product
+    FOREIGN KEY (product_id) REFERENCES products(id)
+    ON DELETE CASCADE ON UPDATE CASCADE
+) ENGINE=InnoDB;
+
+-- ------------------------------------------------------------
 -- VARIANTS (global flower customization presets)
 -- ------------------------------------------------------------
 DROP TABLE IF EXISTS variants;
@@ -261,6 +275,14 @@ INSERT INTO variants (name, price_adjust, needs_message) VALUES
 ('Happy Birthday!', 150, 0),
 ('I Love You!', 150, 0),
 ('Personalized Message', 200, 1);
+
+-- Placeholder gallery pictures (3 per product — admin can replace)
+INSERT INTO product_images (product_id, image, sort_order)
+SELECT p.id, u.url, u.ord FROM products p CROSS JOIN (
+  SELECT 'https://images.unsplash.com/photo-1520763185298-1b434c919102?auto=format&fit=crop&w=900&q=80' url, 1 ord UNION ALL
+  SELECT 'https://images.unsplash.com/photo-1508610048659-a06b669e3321?auto=format&fit=crop&w=900&q=80', 2 UNION ALL
+  SELECT 'https://images.unsplash.com/photo-1457089328109-e5d9bd499191?auto=format&fit=crop&w=900&q=80', 3
+) u;
 
 -- Newsletter sample subscribers
 INSERT INTO newsletter_subscribers (email) VALUES
