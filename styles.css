@@ -30,6 +30,7 @@ body {
   color: var(--ink);
   background: var(--cream);
   line-height: 1.6;
+  overflow-x: clip;
 }
 
 img {
@@ -1044,7 +1045,7 @@ a.floating-card:hover {
   gap: 20px;
 }
 
-@media (max-width: 1150px) {
+@media (max-width: 1400px) {
   .menu-btn {
     display: block;
     order: 3;
