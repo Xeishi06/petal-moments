@@ -1667,6 +1667,13 @@ body.dark .how-it-works,
 body.dark .about-section { background: #241d1c; }
 body.dark .event-section { background: #2e2624; }
 body.dark .newsletter-form { background: #211a19; }
+body.dark .newsletter { background: #333f30; }
+body.dark .newsletter .eyebrow { color: #e8a7b2; }
+body.dark .newsletter h2 { color: #f5ebe7; }
+body.dark .newsletter p { color: rgba(245, 235, 231, 0.82); }
+body.dark .newsletter-form input { color: #f5ebe7; }
+body.dark .newsletter-form input::placeholder { color: #8d7a76; }
+body.dark .footer { background: #241d1c; }
 body.dark .fulfill-pill span,
 body.dark .variant-pill span,
 body.dark .cat-hopper a,
