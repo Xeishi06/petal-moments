@@ -44,6 +44,35 @@ $orders = db()->prepare("
 ");
 $orders->execute([':id' => $_SESSION['user_id']]);
 $myOrders = $orders->fetchAll();
+
+$statSpent = 0.0;
+foreach ($myOrders as $so) {
+    if ($so['status'] !== 'cancelled') { $statSpent += (float)$so['total_amount']; }
+}
+$statFav = db()->prepare("SELECT COUNT(*) FROM wishlist WHERE user_id = :id");
+$statFav->execute([':id' => $_SESSION['user_id']]);
+$statFav = (int)$statFav->fetchColumn();
+$statRev = db()->prepare("SELECT COUNT(*) FROM reviews WHERE user_id = :id");
+$statRev->execute([':id' => $_SESSION['user_id']]);
+$statRev = (int)$statRev->fetchColumn();
+
+$myReviews = db()->prepare("
+    SELECT r.*, p.name AS product_name
+    FROM reviews r JOIN products p ON p.id = r.product_id
+    WHERE r.user_id = :id
+    ORDER BY r.created_at DESC
+");
+$myReviews->execute([':id' => $_SESSION['user_id']]);
+$myReviews = $myReviews->fetchAll();
+
+$favPreview = db()->prepare("
+    SELECT p.id, p.name, p.price, p.image
+    FROM wishlist w JOIN products p ON p.id = w.product_id AND p.is_active = 1
+    WHERE w.user_id = :id
+    ORDER BY w.created_at DESC LIMIT 4
+");
+$favPreview->execute([':id' => $_SESSION['user_id']]);
+$favPreview = $favPreview->fetchAll();
 ?>
 <?php $pageTitle = 'My Account | Petal Moments'; include __DIR__ . '/includes/header.php'; ?>
 
@@ -52,6 +81,13 @@ $myOrders = $orders->fetchAll();
         <div class="section-heading">
             <span class="eyebrow">MY ACCOUNT</span>
             <h2>Hello, <em><?php echo e($user['first_name']); ?></em></h2>
+        </div>
+
+        <div class="hub-stats">
+            <a class="hub-stat" href="#orders"><span><?php echo count($myOrders); ?></span><small>Orders</small></a>
+            <a class="hub-stat" href="#orders"><span>₱<?php echo number_format($statSpent, 2); ?></span><small>Total spent</small></a>
+            <a class="hub-stat" href="wishlist.php"><span><?php echo $statFav; ?></span><small>Favorites</small></a>
+            <a class="hub-stat" href="#reviews"><span><?php echo $statRev; ?></span><small>Reviews</small></a>
         </div>
 
         <div class="account-grid">
@@ -81,14 +117,14 @@ $myOrders = $orders->fetchAll();
                 </form>
             </div>
 
-            <div class="account-orders">
+            <div class="account-orders" id="orders">
                 <h3>My Orders</h3>
                 <?php if (empty($myOrders)): ?>
                     <p class="empty-state">You have no orders yet. <a href="shop.php">Start shopping →</a></p>
                 <?php else: ?>
                     <table class="cart-table">
                         <thead>
-                            <tr><th>Order #</th><th>Total</th><th>Status</th><th>Date</th></tr>
+                            <tr><th>Order #</th><th>Total</th><th>Status</th><th>Date</th><th></th></tr>
                         </thead>
                         <tbody>
                         <?php foreach ($myOrders as $o): ?>
@@ -97,10 +133,42 @@ $myOrders = $orders->fetchAll();
                                 <td>₱<?php echo number_format((float)$o['total_amount'], 2); ?></td>
                                 <td><span class="badge badge-<?php echo e($o['status']); ?>"><?php echo ucfirst(e($o['status'])); ?></span></td>
                                 <td><?php echo date('M j, Y', strtotime($o['created_at'])); ?></td>
+                                <td>
+                                    <form method="post" action="order.php?id=<?php echo (int)$o['id']; ?>" style="margin:0;">
+                                        <input type="hidden" name="form" value="reorder">
+                                        <input type="hidden" name="csrf" value="<?php echo e(csrf_token()); ?>">
+                                        <button type="submit" class="remove-link" style="border:0;background:none;cursor:pointer;">↻ Reorder</button>
+                                    </form>
+                                </td>
                             </tr>
                         <?php endforeach; ?>
                         </tbody>
                     </table>
+                <?php endif; ?>
+
+                <h3 id="reviews" style="margin-top:28px;">My Reviews</h3>
+                <?php if (empty($myReviews)): ?>
+                    <p class="empty-state">No reviews yet — they appear here after you rate your flowers.</p>
+                <?php else: ?>
+                    <?php foreach ($myReviews as $rv): ?>
+                    <div class="review-item" style="margin-bottom:10px;">
+                        <div class="review-head"><a href="product.php?id=<?php echo (int)$rv['product_id']; ?>"><strong><?php echo e($rv['product_name']); ?></strong></a> <?php echo stars_html($rv['rating']); ?></div>
+                        <?php if (!empty($rv['comment'])): ?><p><?php echo nl2br(e($rv['comment'])); ?></p><?php endif; ?>
+                    </div>
+                    <?php endforeach; ?>
+                <?php endif; ?>
+
+                <h3 style="margin-top:28px;">My Favorites <a class="text-link" style="font-size:0.8rem;" href="wishlist.php">View all →</a></h3>
+                <?php if (empty($favPreview)): ?>
+                    <p class="empty-state">Nothing saved yet. <a href="shop.php">Find flowers you love →</a></p>
+                <?php else: ?>
+                    <div class="fav-strip">
+                        <?php foreach ($favPreview as $fp): ?>
+                        <a class="fav-thumb" href="product.php?id=<?php echo (int)$fp['id']; ?>" title="<?php echo e($fp['name']); ?>">
+                            <img src="<?php echo e($fp['image'] ?: 'https://images.unsplash.com/photo-1490750967868-88aa4486c946?auto=format&fit=crop&w=200&q=70'); ?>" alt="<?php echo e($fp['name']); ?>">
+                        </a>
+                        <?php endforeach; ?>
+                    </div>
                 <?php endif; ?>
             </div>
         </div>

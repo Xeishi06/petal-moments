@@ -1448,6 +1448,25 @@ a.floating-card:hover {
   margin-bottom: 4px;
 }
 .opt { font-weight: 400; color: var(--muted); font-size: 0.72rem; }
+/* Account hub */
+.hub-stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-bottom: 30px; }
+.hub-stat {
+  background: #fff; border: 1px solid var(--border); border-radius: 16px;
+  padding: 16px 10px; text-align: center; text-decoration: none;
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+.hub-stat:hover { transform: translateY(-2px); box-shadow: var(--shadow); }
+.hub-stat span { display: block; font-size: 1.25rem; font-weight: 700; color: var(--rose-dark); }
+.hub-stat small { color: var(--muted); font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.06em; }
+.fav-strip { display: flex; gap: 10px; flex-wrap: wrap; }
+.fav-thumb img {
+  width: 64px; height: 64px; object-fit: cover; border-radius: 14px;
+  border: 1px solid var(--border); transition: transform 0.15s ease;
+}
+.fav-thumb:hover img { transform: scale(1.06); }
+@media (max-width: 600px) {
+  .hub-stats { grid-template-columns: repeat(2, 1fr); }
+}
 .sold-inline { color: var(--rose-dark); }
 .stars { color: #e0a100; letter-spacing: 0.1em; }
 /* Reviews */

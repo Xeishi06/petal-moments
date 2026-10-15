@@ -50,6 +50,9 @@ $active    = $active ?? '';
             <a href="index.php#about">About</a>
             <a href="index.php#how">How It Works</a>
             <a href="contact.php">Contact</a>
+            <?php if (is_logged_in()): ?>
+                <a href="account.php#orders">Your Orders</a>
+            <?php endif; ?>
             <span class="nav-divider nav-mobile-only" aria-hidden="true"></span>
             <?php if (is_logged_in()): ?>
                 <a class="nav-mobile-only" href="cart.php">🛒 Cart</a>
