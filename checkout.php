@@ -161,9 +161,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     // Recompute live and refuse to charge a different number than shown.
     $liveFee = quote_fee($cartTotal, $fulfillment === 'pickup', (float)setting('delivery_fee', 0), (float)setting('free_delivery_min', 0));
     $liveGrand = $cartTotal + $liveFee;
-    $expectedGrand = isset($_POST['expected_grand']) ? (float)$_POST['expected_grand'] : -1;
-    if ($expectedGrand >= 0 && abs($liveGrand - $expectedGrand) > 0.01) {
-        $errors[] = 'Prices changed while you were checking out. Please review the updated total below before placing your order.';
+    $expectedGrand = isset($_POST['expected_grand']) && $_POST['expected_grand'] !== '' ? (float)$_POST['expected_grand'] : null;
+    if ($expectedGrand !== null && abs($liveGrand - $expectedGrand) > 0.01) {
+        $errors[] = 'The total moved from ₱' . number_format($expectedGrand, 2) . ' to ₱' . number_format($liveGrand, 2)
+            . ' (a price, sale, stock amount, or fee changed). Please review the updated total below, then place your order again.';
     }
 
     if (!empty($errors)) {
