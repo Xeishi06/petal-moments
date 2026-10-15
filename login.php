@@ -10,16 +10,22 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $email    = strtolower(trim($_POST['email'] ?? ''));
     $password = $_POST['password'] ?? '';
 
-    $stmt = db()->prepare("SELECT * FROM users WHERE email = :e AND is_active = 1");
-    $stmt->execute([':e' => $email]);
-    $user = $stmt->fetch();
-
-    if ($user && password_verify($password, $user['password'])) {
-        login_user($user);
-        flash('success', 'Welcome back, ' . $user['first_name'] . '!');
-        redirect($user['role'] === 'admin' ? 'admin/index.php' : 'shop.php');
+    if (!login_allowed($email)) {
+        flash('error', 'Too many failed attempts. Wait 15 minutes before trying again.');
     } else {
-        flash('error', 'Invalid email or password.');
+        $stmt = db()->prepare("SELECT * FROM users WHERE email = :e AND is_active = 1");
+        $stmt->execute([':e' => $email]);
+        $user = $stmt->fetch();
+
+        if ($user && password_verify($password, $user['password'])) {
+            login_clear($email);
+            login_user($user);
+            flash('success', 'Welcome back, ' . $user['first_name'] . '!');
+            redirect($user['role'] === 'admin' ? 'admin/index.php' : 'shop.php');
+        } else {
+            login_hit($email);
+            flash('error', login_allowed($email) ? 'Invalid email or password.' : 'Too many failed attempts. Wait 15 minutes before trying again.');
+        }
     }
 }
 ?>

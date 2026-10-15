@@ -76,6 +76,39 @@ function pw_change_hit()
     $_SESSION['pw_attempts'][] = time();
 }
 
+// Login brake: max 5 failed tries per email per 15 minutes (per browser session).
+function login_allowed($email)
+{
+    start_session();
+    $key = strtolower(trim($email));
+    $now = time();
+    $all = $_SESSION['login_attempts'] ?? [];
+    $all[$key] = array_values(array_filter(
+        $all[$key] ?? [],
+        function ($t) use ($now) { return ($now - $t) < 900; }
+    ));
+    $_SESSION['login_attempts'] = $all;
+    return count($all[$key]) < 5;
+}
+
+function login_hit($email)
+{
+    start_session();
+    $key = strtolower(trim($email));
+    $all = $_SESSION['login_attempts'] ?? [];
+    $all[$key][] = time();
+    $_SESSION['login_attempts'] = $all;
+}
+
+function login_clear($email)
+{
+    start_session();
+    $key = strtolower(trim($email));
+    $all = $_SESSION['login_attempts'] ?? [];
+    unset($all[$key]);
+    $_SESSION['login_attempts'] = $all;
+}
+
 function is_logged_in()
 {
     return isset($_SESSION['user_id']);
