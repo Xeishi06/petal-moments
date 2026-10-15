@@ -28,15 +28,38 @@ $allVariants = cart_variants();
 $showVariants = ($product['category_slug'] ?? '') !== 'gifts' && count($allVariants) > 1;
 $defaultVid = cart_default_variant();
 
-// "Complete your gift" cross-sell: flagged add-ons, excluding this product
-// (flag-based, so deleting a category can never wipe them again)
+// "Complete your gift" cross-sell: add-ons for this occasion (matching
+// category, or occasion-free), excluding this product
 $giftStmt = db()->prepare("
     SELECT p.id, p.name, p.price, p.image
     FROM products p
     WHERE p.is_addon = 1 AND p.is_active = 1 AND p.id != :id
+      AND (p.category_id IS NULL OR p.category_id = :cid)
     ORDER BY p.id LIMIT 4
 ");
-$giftStmt->execute([':id' => $product['id']]);
+$giftStmt->execute([':id' => $product['id'], ':cid' => $product['category_id']]);
+
+// Related flowers: same occasion, excluding this product and add-ons
+$relSql = "
+    SELECT p.id, p.name, p.price, p.image, c.name AS category_name
+    FROM products p
+    LEFT JOIN categories c ON c.id = p.category_id
+    WHERE p.is_active = 1 AND p.is_addon = 0 AND p.id != :id AND ";
+$relSql .= $product['category_id'] ? "p.category_id = :cid " : "p.category_id IS NULL ";
+$relSql .= "ORDER BY p.id LIMIT 4";
+$relStmt = db()->prepare($relSql);
+$relStmt->bindValue(':id', $product['id'], PDO::PARAM_INT);
+if ($product['category_id']) { $relStmt->bindValue(':cid', $product['category_id'], PDO::PARAM_INT); }
+$relStmt->execute();
+$related = $relStmt->fetchAll();
+
+// Saved set for the heart buttons below
+$relSaved = [];
+if (is_logged_in()) {
+    $rs = db()->prepare("SELECT product_id FROM wishlist WHERE user_id = :u");
+    $rs->execute([':u' => $_SESSION['user_id']]);
+    $relSaved = array_map('intval', array_column($rs->fetchAll(), 'product_id'));
+}
 $gifts = $giftStmt->fetchAll();
 
 // Category hopper above the product
@@ -209,6 +232,34 @@ $mainPhoto = $product['image'] ?: 'https://images.unsplash.com/photo-14907509678
             </aside>
             <?php endif; ?>
         </div>
+
+        <?php if (!empty($related)): ?>
+        <div class="related-row">
+            <div class="section-heading">
+                <span class="eyebrow">KEEP EXPLORING</span>
+                <h2>More <?php echo e($product['category_name'] ?? ''); ?> <em>arrangements</em></h2>
+            </div>
+            <div class="product-grid">
+                <?php foreach ($related as $rp): ?>
+                <article class="product-card">
+                    <div class="product-image">
+                        <a class="view-btn" href="product.php?id=<?php echo (int)$rp['id']; ?>" aria-label="View arrangement">View</a>
+                        <button type="button" class="fav-btn<?php echo in_array((int)$rp['id'], $relSaved, true) ? ' active' : ''; ?>" data-wishlist="<?php echo (int)$rp['id']; ?>" aria-label="Save to favorites" aria-pressed="<?php echo in_array((int)$rp['id'], $relSaved, true) ? 'true' : 'false'; ?>">♥</button>
+                        <img src="<?php echo e($rp['image'] ?: 'https://images.unsplash.com/photo-1490750967868-88aa4486c946?auto=format&fit=crop&w=700&q=80'); ?>" alt="<?php echo e($rp['name']); ?>" loading="lazy">
+                    </div>
+                    <div class="product-details">
+                        <div>
+                            <h3><?php echo e($rp['name']); ?></h3>
+                            <p><?php echo e($rp['category_name'] ?? 'For any occasion'); ?></p>
+                        </div>
+                        <strong>₱<?php echo number_format((float)$rp['price'], 2); ?></strong>
+                    </div>
+                </article>
+                <?php endforeach; ?>
+            </div>
+        </div>
+        <?php endif; ?>
+    </div>
 </section>
 
 <?php include __DIR__ . '/includes/footer.php'; ?>

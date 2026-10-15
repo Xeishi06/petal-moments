@@ -1502,6 +1502,8 @@ a.floating-card:hover {
 .addon-info span { color: var(--rose-dark); font-weight: 700; font-size: 0.85rem; }
 .addon-row form { margin: 0; }
 .addon-row .btn-small { min-height: 36px; padding-inline: 14px; }
+/* Related flowers row */
+.related-row { margin-top: 70px; }
 @media (max-width: 1020px) {
   .cross-grid { grid-template-columns: repeat(2, 1fr); }
 }

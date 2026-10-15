@@ -16,6 +16,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['form'] ?? '') === 'addon')
     $name  = trim($_POST['name'] ?? '');
     $price = (float)($_POST['price'] ?? 0);
     $stock = (int)($_POST['stock'] ?? 0);
+    $cat   = (int)($_POST['category_id'] ?? 0);
     $image = trim($_POST['image'] ?? '');
     $desc  = trim($_POST['description'] ?? '');
     $slug  = strtolower(preg_replace('/[^a-z0-9]+/i', '-', $name));
@@ -49,12 +50,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['form'] ?? '') === 'addon')
         flash('error', $uploadError);
     } else {
         if ($id > 0) {
-            $pdo->prepare("UPDATE products SET name=:n, slug=:s, description=:d, price=:p, image=:i, stock=:st WHERE id=:id AND is_addon = 1")
-                ->execute([':n' => $name, ':s' => $slug, ':d' => $desc, ':p' => $price, ':i' => $image, ':st' => $stock, ':id' => $id]);
+            $pdo->prepare("UPDATE products SET category_id=:c, name=:n, slug=:s, description=:d, price=:p, image=:i, stock=:st WHERE id=:id AND is_addon = 1")
+                ->execute([':c' => $cat ?: null, ':n' => $name, ':s' => $slug, ':d' => $desc, ':p' => $price, ':i' => $image, ':st' => $stock, ':id' => $id]);
             flash('success', 'Add-on updated. It shows in “Complete your gift” right away.');
         } else {
-            $pdo->prepare("INSERT INTO products (category_id, name, slug, description, price, image, stock, is_featured, is_addon) VALUES (NULL,:n,:s,:d,:p,:i,:st,0,1)")
-                ->execute([':n' => $name, ':s' => $slug, ':d' => $desc, ':p' => $price, ':i' => $image, ':st' => $stock]);
+            $pdo->prepare("INSERT INTO products (category_id, name, slug, description, price, image, stock, is_featured, is_addon) VALUES (:c,:n,:s,:d,:p,:i,:st,0,1)")
+                ->execute([':c' => $cat ?: null, ':n' => $name, ':s' => $slug, ':d' => $desc, ':p' => $price, ':i' => $image, ':st' => $stock]);
             flash('success', 'Add-on added. It shows in “Complete your gift” right away.');
         }
         redirect('addons.php');
@@ -65,7 +66,12 @@ $active = 'addons';
 $adminTitle = 'Add-ons | Petal Moments Admin';
 include __DIR__ . '/includes/admin_header.php';
 
-$addons = $pdo->query("SELECT * FROM products WHERE is_addon = 1 ORDER BY id DESC")->fetchAll();
+$allCats = $pdo->query("SELECT id, name FROM categories ORDER BY id")->fetchAll();
+$addons = $pdo->query("
+    SELECT p.*, c.name AS category_name
+    FROM products p LEFT JOIN categories c ON c.id = p.category_id
+    WHERE p.is_addon = 1 ORDER BY p.id DESC
+")->fetchAll();
 
 $editing = null;
 if (isset($_GET['edit'])) {
@@ -97,6 +103,16 @@ if (isset($_GET['edit'])) {
         </div>
         <label>Stock</label>
         <input type="number" name="stock" min="0" value="<?php echo e($editing['stock'] ?? '50'); ?>">
+        <label>Shows on <small class="opt">(which occasions)</small></label>
+        <select name="category_id">
+            <option value="0">All occasions</option>
+            <?php foreach ($allCats as $c): ?>
+                <option value="<?php echo (int)$c['id']; ?>"
+                    <?php echo ($editing && $editing['category_id'] == $c['id']) ? 'selected' : ''; ?>>
+                    <?php echo e($c['name']); ?> only
+                </option>
+            <?php endforeach; ?>
+        </select>
         <label>Image URL</label>
         <input type="text" name="image" value="<?php echo e($editing['image'] ?? ''); ?>" placeholder="https://... or leave blank">
         <div class="or-divider">OR</div>
@@ -118,11 +134,11 @@ if (isset($_GET['edit'])) {
     <div class="table-scroll">
     <table class="admin-table">
         <thead>
-            <tr><th>Add-on</th><th>Price</th><th>Stock</th><th>Actions</th></tr>
+            <tr><th>Add-on</th><th>Shows on</th><th>Price</th><th>Stock</th><th>Actions</th></tr>
         </thead>
         <tbody>
         <?php if (empty($addons)): ?>
-            <tr><td colspan="4" class="table-empty">No add-ons yet. Add your first one above.</td></tr>
+            <tr><td colspan="5" class="table-empty">No add-ons yet. Add your first one above.</td></tr>
         <?php else: ?>
         <?php foreach ($addons as $a): ?>
             <tr>
@@ -139,6 +155,7 @@ if (isset($_GET['edit'])) {
                         </div>
                     </div>
                 </td>
+                <td><?php echo e($a['category_name'] ?? 'All occasions'); ?></td>
                 <td>₱<?php echo number_format((float)$a['price'], 2); ?></td>
                 <td><span class="chip <?php echo $a['stock'] > 0 ? 'chip-in' : 'chip-out'; ?>"><?php echo (int)$a['stock']; ?></span></td>
                 <td>
