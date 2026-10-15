@@ -90,7 +90,7 @@ if ($fSearch !== '') {
 $whereSql = $where ? ('WHERE ' . implode(' AND ', $where)) : '';
 
 $oq = $pdo->prepare("
-    SELECT o.id, o.user_id, o.total_amount, o.status, o.created_at, o.payment_method, o.payment_ref, o.delivery_address, o.fulfillment,
+    SELECT o.id, o.user_id, o.total_amount, o.status, o.created_at, o.payment_method, o.payment_ref, o.pay_verified, o.delivery_address, o.fulfillment,
            u.id AS customer_id, u.first_name, u.last_name, u.email,
            (SELECT COUNT(*) FROM order_items oi WHERE oi.order_id=o.id) AS items,
            (SELECT GROUP_CONCAT(CONCAT(p.name, ' ×', oi.quantity) SEPARATOR ', ')
@@ -147,7 +147,7 @@ $orders = $oq->fetchAll();
                 </td>
                 <td><?php echo (int)$o['items']; ?><?php if (!empty($o['item_names'])): ?><br><small title="<?php echo e($o['item_names']); ?>"><?php echo e(mb_strimwidth($o['item_names'], 0, 42, '…')); ?></small><?php endif; ?></td>
                 <td>₱<?php echo number_format((float)$o['total_amount'], 2); ?></td>
-                <td><?php echo e(pay_label($o['payment_method'])); ?><?php echo ($o['payment_method'] === 'gcash' && !empty($o['payment_ref'])) ? ' • Ref: ' . e($o['payment_ref']) : ''; ?></td>
+                <td><?php echo e(pay_label($o['payment_method'])); ?><?php echo ($o['payment_method'] === 'gcash' && !empty($o['payment_ref'])) ? ' • Ref: ' . e($o['payment_ref']) : ''; ?><?php echo ($o['payment_method'] === 'gcash' && empty($o['pay_verified'])) ? ' <span class="chip chip-out">Unverified</span>' : ''; ?></td>
                 <td><span class="badge badge-<?php echo e($o['status']); ?>"><?php echo ucfirst(e($o['status'])); ?></span></td>
                 <td><?php echo date('M j, Y', strtotime($o['created_at'])); ?></td>
                 <td>

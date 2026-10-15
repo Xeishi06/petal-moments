@@ -19,6 +19,14 @@ if (!$order) {
     redirect('orders.php');
 }
 
+// Warn if this GCash ref appears on other non-cancelled orders
+$dupOrders = [];
+if ($order['payment_method'] === 'gcash' && !empty($order['payment_ref'])) {
+    $dq = $pdo->prepare("SELECT id FROM orders WHERE payment_method = 'gcash' AND payment_ref = :ref AND id != :id AND status != 'cancelled'");
+    $dq->execute([':ref' => $order['payment_ref'], ':id' => $orderId]);
+    $dupOrders = array_column($dq->fetchAll(), 'id');
+}
+
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['form'] ?? '') === 'status') {
     $status = $_POST['status'] ?? '';
     $note   = trim($_POST['note'] ?? '');
@@ -35,6 +43,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['form'] ?? '') === 'status'
             flash('error', 'Update failed: ' . $e->getMessage());
         }
     }
+    redirect('order_detail.php?id=' . $orderId);
+}
+
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['form'] ?? '') === 'verify') {
+    $pdo->prepare("UPDATE orders SET pay_verified = 1 - pay_verified WHERE id = :id")->execute([':id' => $orderId]);
+    $pdo->prepare("INSERT INTO order_status_history (order_id, status, note) VALUES (:oid, :s, 'Payment verification toggled by admin')")
+        ->execute([':oid' => $orderId, ':s' => $order['status']]);
+    flash('success', 'Payment verification updated.');
     redirect('order_detail.php?id=' . $orderId);
 }
 
@@ -101,6 +117,25 @@ include __DIR__ . '/includes/admin_header.php';
             <div class="wide"><span><?php echo ($order['fulfillment'] ?? 'delivery') === 'pickup' ? 'Pickup point' : 'Deliver to'; ?></span><p><?php echo ($order['fulfillment'] ?? 'delivery') === 'pickup' ? e(setting('pickup_address', 'Shop pickup')) : e($order['delivery_address'] ?? '—'); ?></p></div>
             <div><span>Date</span><strong><?php echo $order['delivery_date'] ? e(date('M j, Y', strtotime($order['delivery_date']))) : '—'; ?></strong></div>
             <?php if ($order['payment_method'] === 'gcash'): ?><div><span>GCash ref</span><strong><?php echo e($order['payment_ref'] ?? '— missing —'); ?></strong></div><?php endif; ?>
+            <?php if (!empty($dupOrders)): ?>
+                <div class="wide"><span>⚠ Duplicate ref</span><p style="color:#b34f4f;font-weight:600;">Same reference used on order(s): <?php foreach ($dupOrders as $d): ?><a href="order_detail.php?id=<?php echo (int)$d; ?>">#<?php echo (int)$d; ?></a> <?php endforeach; ?> — verify carefully.</p></div>
+            <?php endif; ?>
+            <?php if (!empty($order['receipt'])): ?>
+                <div class="wide"><span>Receipt</span><p><a href="../<?php echo e($order['receipt']); ?>" target="_blank" rel="noopener"><img src="../<?php echo e($order['receipt']); ?>" alt="GCash receipt" style="max-width:220px;border-radius:10px;border:1px solid var(--border);"></a><br><small>Click to enlarge</small></p></div>
+            <?php endif; ?>
+            <div class="wide">
+                <span>Payment verification</span>
+                <p>
+                    <?php if (!empty($order['pay_verified'])): ?>
+                        <span class="chip chip-yes">✔ Verified</span>
+                    <?php else: ?>
+                        <span class="chip chip-out">Unverified</span>
+                    <?php endif; ?>
+                </p>
+                <form method="post" action="order_detail.php?id=<?php echo (int)$order['id']; ?>" style="margin-top:8px;">
+                    <button type="submit" name="form" value="verify" class="btn <?php echo !empty($order['pay_verified']) ? 'btn-light' : 'btn-primary'; ?> btn-sm"><?php echo !empty($order['pay_verified']) ? 'Mark Unverified' : '✔ Mark Payment Verified'; ?></button>
+                </form>
+            </div>
             <?php if (!empty($order['sender_no'])): ?><div><span><?php echo $order['payment_method'] === 'card' ? 'Card used' : 'Paid from'; ?></span><strong><?php echo e($order['sender_no']); ?></strong></div><?php endif; ?>
             <div class="wide"><span>Notes</span><p><?php echo !empty($order['delivery_notes']) ? nl2br(e($order['delivery_notes'])) : '<span class="link-soft">—</span>'; ?></p></div>
         </div>

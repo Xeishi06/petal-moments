@@ -18,6 +18,8 @@ uploads/categories/*
 !uploads/categories/.gitkeep
 uploads/products/*
 !uploads/products/.gitkeep
+uploads/receipts/*
+!uploads/receipts/.gitkeep
 
 # Keep sensitive local config out if you add any later
 # config/local.php

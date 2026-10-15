@@ -79,6 +79,8 @@ CREATE TABLE orders (
   payment_method  ENUM('cash_on_delivery','gcash','pay_on_pickup','card') NOT NULL DEFAULT 'cash_on_delivery',
   payment_ref     VARCHAR(100)   NULL,
   sender_no       VARCHAR(100)   NULL,
+  receipt         VARCHAR(255)   NULL,
+  pay_verified    TINYINT(1)     NOT NULL DEFAULT 0,
   fulfillment     ENUM('delivery','pickup') NOT NULL DEFAULT 'delivery',
   status          ENUM('pending','processing','delivered','cancelled')
                                  NOT NULL DEFAULT 'pending',

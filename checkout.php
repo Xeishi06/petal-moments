@@ -142,6 +142,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $errors[] = 'GCash reference number should be the 10–13 digit number from your receipt.';
         } elseif (mb_strlen($paymentRef) > 100) {
             $errors[] = 'GCash reference number is too long.';
+        } else {
+            $dupRef = db()->prepare("SELECT id FROM orders WHERE payment_method = 'gcash' AND payment_ref = :ref AND status != 'cancelled' LIMIT 1");
+            $dupRef->execute([':ref' => $paymentRef]);
+            if ($dupRef->fetch()) {
+                $errors[] = 'This GCash reference number was already used on another order. Please check your receipt and try again.';
+            }
         }
         $senderDigits = preg_replace('/\s+/', '', $senderNo);
         if ($senderNo === '') {
@@ -151,6 +157,20 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         } else {
             $senderNo = $senderDigits;
         }
+        // Optional receipt screenshot (validated now, moved after order is created)
+        $receiptErr = null;
+        if (!empty($_FILES['receipt']['name']) && ($_FILES['receipt']['error'] ?? UPLOAD_ERR_NO_FILE) === UPLOAD_ERR_OK) {
+            $allowed = ['jpg' => 'image/jpeg', 'jpeg' => 'image/jpeg', 'png' => 'image/png', 'webp' => 'image/webp'];
+            $ext = strtolower(pathinfo($_FILES['receipt']['name'], PATHINFO_EXTENSION));
+            $finfo = new finfo(FILEINFO_MIME_TYPE);
+            $mime = $finfo->file($_FILES['receipt']['tmp_name']);
+            if (!isset($allowed[$ext]) || $allowed[$ext] !== $mime) {
+                $receiptErr = 'Receipt must be a JPG, PNG or WEBP image.';
+            } elseif ($_FILES['receipt']['size'] > 2 * 1024 * 1024) {
+                $receiptErr = 'Receipt image must be under 2MB.';
+            }
+        }
+        if ($receiptErr !== null) { $errors[] = $receiptErr; }
     }
     if ($fulfillment === 'delivery') {
         if ($deliveryAddress === '') {
@@ -242,6 +262,20 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             ]);
             $orderId = (int)$pdo->lastInsertId();
 
+            // Move the receipt now that the order exists (order id in filename)
+            $receiptPath = null;
+            if ($paymentMethod === 'gcash' && !empty($_FILES['receipt']['name']) && ($_FILES['receipt']['error'] ?? UPLOAD_ERR_NO_FILE) === UPLOAD_ERR_OK) {
+                $ext = strtolower(pathinfo($_FILES['receipt']['name'], PATHINFO_EXTENSION));
+                $destDir = __DIR__ . '/uploads/receipts';
+                if (!is_dir($destDir)) { mkdir($destDir, 0755, true); }
+                $receiptPath = 'uploads/receipts/receipt-' . $orderId . '-' . time() . '.' . $ext;
+                if (move_uploaded_file($_FILES['receipt']['tmp_name'], __DIR__ . '/' . $receiptPath)) {
+                    $pdo->prepare("UPDATE orders SET receipt = :r WHERE id = :id")->execute([':r' => $receiptPath, ':id' => $orderId]);
+                } else {
+                    $receiptPath = null;
+                }
+            }
+
             $itemStmt = $pdo->prepare("
                 INSERT INTO order_items (order_id, product_id, quantity, unit_price, variant_name, dedication, subtotal)
                 VALUES (:oid, :pid, :qty, :price, :variant, :ded, :sub)
@@ -295,7 +329,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
         <div class="checkout-grid">
             <div class="checkout-form">
-                <form method="post" action="checkout.php<?php echo $isBuyNow ? '?mode=buynow' : ''; ?>" id="checkoutForm" novalidate>
+                <form method="post" action="checkout.php<?php echo $isBuyNow ? '?mode=buynow' : ''; ?>" id="checkoutForm" novalidate enctype="multipart/form-data">
                     <input type="hidden" name="csrf" value="<?php echo e(csrf_token()); ?>">
                     <input type="hidden" name="order_token" value="<?php echo e($_SESSION['order_token']); ?>">
                     <input type="hidden" name="expected_grand" id="expectedGrand" value="<?php echo number_format($cartTotal + quote_fee($cartTotal, false, $feeFlat, $feeFreeMin), 2, '.', ''); ?>">
@@ -357,6 +391,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                             <?php endforeach; ?>
                         </div>
                         <?php endif; ?>
+                        <label>Receipt screenshot <small class="opt">(optional, speeds up verification)</small></label>
+                        <input type="file" name="receipt" accept="image/jpeg,image/png,image/webp">
                     </div>
 
                     <div class="gcash-box" id="cardBox" hidden>
