@@ -68,7 +68,7 @@ $toReview = array_map(function ($t) {
             </table>
 
             <?php if (($order['fulfillment'] ?? 'delivery') === 'pickup'): ?>
-            <p><strong>🏃 Pick up at:</strong> 688 B. Manuel St., Montalban, Rizal — we'll message you when your flowers are ready.</p>
+            <p><strong>🏃 Pick up at:</strong> <?php echo e(setting('pickup_address', 'our shop')); ?> — we'll message you when your flowers are ready.</p>
             <?php else: ?>
             <p><strong>Delivery to:</strong> <?php echo e($order['delivery_address'] ?? '—'); ?></p>
             <?php endif; ?>

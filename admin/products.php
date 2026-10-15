@@ -51,6 +51,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['form'] ?? '') === 'product
     $image     = trim($_POST['image'] ?? '');
     $desc      = trim($_POST['description'] ?? '');
     $featured  = isset($_POST['is_featured']) ? 1 : 0;
+    $isActive  = isset($_POST['is_active']) ? 1 : 0;
     $slug      = strtolower(preg_replace('/[^a-z0-9]+/i', '-', $name));
 
     // File upload takes precedence over URL if a file was picked
@@ -85,13 +86,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['form'] ?? '') === 'product
         flash('error', $uploadError);
     } else {
         if ($id > 0) {
-            $pdo->prepare("UPDATE products SET category_id=:c, name=:n, slug=:s, description=:d, price=:p, sale_price=:sp, image=:i, stock=:st, is_featured=:f WHERE id=:id")
-                ->execute([':c'=>$category?:null, ':n'=>$name, ':s'=>$slug, ':d'=>$desc, ':p'=>$price, ':sp'=>$sale, ':i'=>$image, ':st'=>$stock, ':f'=>$featured, ':id'=>$id]);
+            $pdo->prepare("UPDATE products SET category_id=:c, name=:n, slug=:s, description=:d, price=:p, sale_price=:sp, image=:i, stock=:st, is_featured=:f, is_active=:a WHERE id=:id")
+                ->execute([':c'=>$category?:null, ':n'=>$name, ':s'=>$slug, ':d'=>$desc, ':p'=>$price, ':sp'=>$sale, ':i'=>$image, ':st'=>$stock, ':f'=>$featured, ':a'=>$isActive, ':id'=>$id]);
             flash('success', 'Product updated.');
             redirect('products.php');
         } else {
-            $pdo->prepare("INSERT INTO products (category_id, name, slug, description, price, sale_price, image, stock, is_featured, is_addon) VALUES (:c,:n,:s,:d,:p,:sp,:i,:st,:f,0)")
-                ->execute([':c'=>$category?:null, ':n'=>$name, ':s'=>$slug, ':d'=>$desc, ':p'=>$price, ':sp'=>$sale, ':i'=>$image, ':st'=>$stock, ':f'=>$featured]);
+            $pdo->prepare("INSERT INTO products (category_id, name, slug, description, price, sale_price, image, stock, is_featured, is_addon, is_active) VALUES (:c,:n,:s,:d,:p,:sp,:i,:st,:f,0,:a)")
+                ->execute([':c'=>$category?:null, ':n'=>$name, ':s'=>$slug, ':d'=>$desc, ':p'=>$price, ':sp'=>$sale, ':i'=>$image, ':st'=>$stock, ':f'=>$featured, ':a'=>$isActive]);
             $newId = (int)$pdo->lastInsertId();
             // Extra pictures submitted with the new product (URLs + uploads)
             $added = 0;
@@ -287,6 +288,7 @@ $heroIds = array_map('intval', array_column(
         <textarea name="description" rows="3"><?php echo e($editing['description'] ?? ''); ?></textarea>
 
         <label class="checkbox"><input type="checkbox" name="is_featured" <?php echo ($editing && $editing['is_featured']) ? 'checked' : ''; ?>> Featured — shows in Best Sellers & hero slideshow</label>
+        <label class="checkbox"><input type="checkbox" name="is_active" <?php echo (!$editing || $editing['is_active']) ? 'checked' : ''; ?>> Active — visible in the shop (uncheck to hide without deleting)</label>
 
         <div class="form-actions">
             <button type="submit" class="btn btn-primary"><?php echo $editing ? 'Save Changes' : 'Add Product'; ?></button>
@@ -326,7 +328,7 @@ $heroIds = array_map('intval', array_column(
                         <?php endif; ?>
                         <div>
                             <strong><?php echo e($p['name']); ?></strong>
-                            <small>#<?php echo (int)$p['id']; ?></small>
+                            <small>#<?php echo (int)$p['id']; ?><?php echo empty($p['is_active']) ? ' • Hidden' : ''; ?></small>
                         </div>
                     </div>
                 </td>

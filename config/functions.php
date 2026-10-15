@@ -145,6 +145,21 @@ function cart_save_lines($store, $lines)
     $_SESSION[$store] = $lines;
 }
 
+// Shop settings (admin-editable, with fallback defaults)
+function setting($key, $default = '')
+{
+    static $cache = null;
+    if ($cache === null) {
+        $cache = [];
+        try {
+            foreach (db()->query("SELECT skey, svalue FROM settings")->fetchAll() as $r) {
+                $cache[$r['skey']] = $r['svalue'];
+            }
+        } catch (Exception $e) { /* settings table missing — use defaults */ }
+    }
+    return isset($cache[$key]) && $cache[$key] !== '' ? $cache[$key] : $default;
+}
+
 // Sale-aware pricing: sale_price wins when set and below regular price
 function eff_price($p)
 {

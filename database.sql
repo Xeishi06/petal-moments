@@ -212,6 +212,15 @@ CREATE TABLE reviews (
 ) ENGINE=InnoDB;
 
 -- ------------------------------------------------------------
+-- SETTINGS (admin-editable shop details)
+-- ------------------------------------------------------------
+DROP TABLE IF EXISTS settings;
+CREATE TABLE settings (
+  skey    VARCHAR(60)  PRIMARY KEY,
+  svalue  VARCHAR(255) NOT NULL DEFAULT ''
+) ENGINE=InnoDB;
+
+-- ------------------------------------------------------------
 -- CONTACT MESSAGES (contact form inbox)
 -- ------------------------------------------------------------
 DROP TABLE IF EXISTS contact_messages;
@@ -297,6 +306,13 @@ INSERT INTO variants (name, price_adjust, needs_message) VALUES
 ('Happy Birthday!', 150, 0),
 ('I Love You!', 150, 0),
 ('Personalized Message', 200, 1);
+
+-- Default shop settings (change in admin Settings — replace GCash with the real one)
+INSERT INTO settings (skey, svalue) VALUES
+('gcash_number', '0917 123 4567'),
+('gcash_name', 'Petal Moments'),
+('pickup_address', '688 B. Manuel St., Montalban, Rizal'),
+('announcement', 'Fresh flowers, thoughtfully arranged. Same-day orders subject to availability.');
 
 -- Placeholder gallery pictures (3 per product — admin can replace)
 INSERT INTO product_images (product_id, image, sort_order)

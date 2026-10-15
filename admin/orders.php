@@ -30,19 +30,47 @@ $active = 'orders';
 $adminTitle = 'Orders | Petal Moments Admin';
 include __DIR__ . '/includes/admin_header.php';
 
-$orders = $pdo->query("
+$fStatus = $_GET['status'] ?? 'all';
+if (!in_array($fStatus, ['all', 'pending', 'processing', 'delivered', 'cancelled'], true)) { $fStatus = 'all'; }
+$fSearch = trim($_GET['q'] ?? '');
+
+$where = [];
+$params = [];
+if ($fStatus !== 'all') { $where[] = 'o.status = :st'; $params[':st'] = $fStatus; }
+if ($fSearch !== '') {
+    $where[] = '(CAST(o.id AS CHAR) LIKE :q OR u.email LIKE :q OR u.first_name LIKE :q OR u.last_name LIKE :q)';
+    $params[':q'] = '%' . $fSearch . '%';
+}
+$whereSql = $where ? ('WHERE ' . implode(' AND ', $where)) : '';
+
+$oq = $pdo->prepare("
     SELECT o.id, o.user_id, o.total_amount, o.status, o.created_at, o.payment_method, o.payment_ref, o.delivery_address, o.fulfillment,
            u.id AS customer_id, u.email,
            (SELECT COUNT(*) FROM order_items oi WHERE oi.order_id=o.id) AS items
     FROM orders o JOIN users u ON u.id=o.user_id
+    $whereSql
     ORDER BY o.created_at DESC
-")->fetchAll();
+");
+$oq->execute($params);
+$orders = $oq->fetchAll();
 ?>
 
 <div class="admin-card"><h1>Orders</h1><p>Manage and update the status of customer orders.</p></div>
 
 <div class="admin-card">
-    <div class="table-scroll">
+    <form method="get" action="orders.php" class="filter-row">
+        <select name="status" onchange="this.form.submit()">
+            <option value="all"<?php echo $fStatus === 'all' ? ' selected' : ''; ?>>All statuses</option>
+            <?php foreach (['pending', 'processing', 'delivered', 'cancelled'] as $s): ?>
+                <option value="<?php echo $s; ?>"<?php echo $fStatus === $s ? ' selected' : ''; ?>><?php echo ucfirst($s); ?></option>
+            <?php endforeach; ?>
+        </select>
+        <input type="text" name="q" value="<?php echo e($fSearch); ?>" placeholder="Search order #, name, email...">
+        <button type="submit" class="btn btn-dark btn-sm">Filter</button>
+        <?php if ($fStatus !== 'all' || $fSearch !== ''): ?><a class="btn btn-light btn-sm" href="orders.php">Clear</a><?php endif; ?>
+    </form>
+    <p class="result-count" style="text-align:left;margin:10px 0 0;"><?php echo count($orders); ?> order(s) found.</p>
+    <div class="table-scroll" style="margin-top:12px;">
     <table class="admin-table">
         <thead>
             <tr><th>#</th><th>Customer</th><th>Items</th><th>Total</th><th>Payment</th><th>Status</th><th>Date</th><th>Update</th></tr>
@@ -53,7 +81,7 @@ $orders = $pdo->query("
         <?php else: ?>
         <?php foreach ($orders as $o): ?>
             <tr>
-                <td>#<?php echo (int)$o['id']; ?></td>
+                <td><a href="order_detail.php?id=<?php echo (int)$o['id']; ?>"><strong>#<?php echo (int)$o['id']; ?></strong></a></td>
                 <td>
                     <div class="cell-with-thumb">
                         <span class="avatar avatar-sm avatar-sage">C</span>

@@ -27,6 +27,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['form'] ?? '') === 'categor
     $name = trim($_POST['name'] ?? '');
     $desc = trim($_POST['description'] ?? '');
     $image = trim($_POST['image'] ?? '');
+    $isActive = isset($_POST['is_active']) ? 1 : 0;
     // File upload takes precedence over URL if a file was picked
     $uploadError = null;
     if (!empty($_FILES['image_file']['name']) && ($_FILES['image_file']['error'] ?? UPLOAD_ERR_NO_FILE) === UPLOAD_ERR_OK) {
@@ -64,10 +65,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['form'] ?? '') === 'categor
                 throw new Exception('A category with that name already exists.');
             }
             if ($id > 0) {
-                $pdo->prepare("UPDATE categories SET name=:n, slug=:s, description=:d, image=:img WHERE id=:id")->execute([':n'=>$name,':s'=>$slug,':d'=>$desc,':img'=>$image ?: null,':id'=>$id]);
+                $pdo->prepare("UPDATE categories SET name=:n, slug=:s, description=:d, image=:img, is_active=:a WHERE id=:id")->execute([':n'=>$name,':s'=>$slug,':d'=>$desc,':img'=>$image ?: null,':a'=>$isActive,':id'=>$id]);
                 flash('success', 'Category updated.');
             } else {
-                $pdo->prepare("INSERT INTO categories (name, slug, description, image) VALUES (:n,:s,:d,:img)")->execute([':n'=>$name,':s'=>$slug,':d'=>$desc,':img'=>$image ?: null]);
+                $pdo->prepare("INSERT INTO categories (name, slug, description, image, is_active) VALUES (:n,:s,:d,:img,:a)")->execute([':n'=>$name,':s'=>$slug,':d'=>$desc,':img'=>$image ?: null,':a'=>$isActive]);
                 flash('success', 'Category added.');
             }
             redirect('categories.php');
@@ -114,6 +115,7 @@ if (isset($_GET['edit'])) {
         <?php endif; ?>
         <label>Description</label>
         <textarea name="description" rows="2"><?php echo e($editing['description'] ?? ''); ?></textarea>
+        <label class="checkbox"><input type="checkbox" name="is_active" <?php echo (!$editing || $editing['is_active']) ? 'checked' : ''; ?>> Active — visible in the shop (uncheck to hide without deleting)</label>
         <div class="form-actions">
             <button type="submit" class="btn btn-primary"><?php echo $editing ? 'Save' : 'Add'; ?></button>
             <?php if ($editing): ?><a class="btn btn-light" href="categories.php">Cancel</a><?php endif; ?>
@@ -137,7 +139,7 @@ if (isset($_GET['edit'])) {
                         <?php endif; ?>
                         <div>
                             <strong><?php echo e($c['name']); ?></strong>
-                            <small>#<?php echo (int)$c['id']; ?></small>
+                            <small>#<?php echo (int)$c['id']; ?><?php echo empty($c['is_active']) ? ' • Hidden' : ''; ?></small>
                         </div>
                     </div>
                 </td>

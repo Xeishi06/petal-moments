@@ -7,8 +7,9 @@ if (!isset($_SESSION['cart'])) {
     $_SESSION['cart'] = [];
 }
 
-// Shop GCash account — REPLACE with your real number before going live
-$shopGcash = '0917 123 4567 (Petal Moments)';
+// Shop details come from admin Settings (with fallbacks)
+$shopGcash = trim(setting('gcash_number', '0917 123 4567') . ' (' . setting('gcash_name', 'Petal Moments') . ')', ' ()');
+$pickupAddr = setting('pickup_address', '688 B. Manuel St., Montalban, Rizal');
 
 // Saved addresses: profile address + distinct past delivery addresses
 $addrOptions = [];
@@ -251,7 +252,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         </datalist>
                         <?php endif; ?>
                     </div>
-                    <p class="pickup-note" id="pickupNote" hidden>Pick up at <strong>688 B. Manuel St., Montalban, Rizal</strong> — we'll message you when your flowers are ready.</p>
+                    <p class="pickup-note" id="pickupNote" hidden>Pick up at <strong><?php echo e($pickupAddr); ?></strong> — we'll message you when your flowers are ready.</p>
 
                     <label>Delivery / Pickup Date *</label>
                     <input type="date" name="delivery_date" min="<?php echo date('Y-m-d', strtotime('+1 day')); ?>" required>

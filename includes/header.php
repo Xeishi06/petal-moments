@@ -22,7 +22,7 @@ $active    = $active ?? '';
 <body id="top" data-auth="<?php echo is_logged_in() ? '1' : '0'; ?>" data-csrf="<?php echo e(csrf_token()); ?>">
 
 <div class="announcement">
-    <p>Fresh flowers, thoughtfully arranged. Same-day orders subject to availability.</p>
+    <p><?php echo e(setting('announcement', 'Fresh flowers, thoughtfully arranged.')); ?></p>
 </div>
 
 <header class="site-header">

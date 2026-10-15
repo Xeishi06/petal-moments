@@ -9,6 +9,16 @@ $totalRevenue  = db()->query("SELECT COALESCE(SUM(total_amount),0) FROM orders W
 $totalUsers    = db()->query("SELECT COUNT(*) FROM users WHERE role='customer'")->fetchColumn();
 $pendingOrders = db()->query("SELECT COUNT(*) FROM orders WHERE status='pending'")->fetchColumn();
 $pendingInquiries = db()->query("SELECT COUNT(*) FROM event_inquiries WHERE status='pending'")->fetchColumn();
+$newMessages = 0;
+try { $newMessages = (int)db()->query("SELECT COUNT(*) FROM contact_messages WHERE status='new'")->fetchColumn(); } catch (Exception $e) {}
+$recentActivity = [];
+try {
+    $recentActivity = db()->query("
+        SELECT h.order_id, h.status, h.note, h.changed_at
+        FROM order_status_history h
+        ORDER BY h.changed_at DESC LIMIT 8
+    ")->fetchAll();
+} catch (Exception $e) {}
 
 $recentOrders = db()->query("
     SELECT o.id, o.total_amount, o.status, o.created_at, u.id AS customer_id
@@ -49,6 +59,7 @@ $topProducts = db()->query("
     <a class="stat-card stat-rose" href="inquiries.php"><span>Pending Inquiries</span><strong><?php echo (int)$pendingInquiries; ?></strong><small>Review →</small><?php if ((int)$pendingInquiries > 0): ?><span class="stat-badge" title="Needs attention"><?php echo (int)$pendingInquiries; ?></span><?php endif; ?></a>
     <a class="stat-card stat-rose" href="orders.php"><span>Total Revenue</span><strong>₱<?php echo number_format((float)$totalRevenue, 2); ?></strong><small>View orders →</small></a>
     <a class="stat-card stat-blue" href="users.php"><span>Customers</span><strong><?php echo (int)$totalUsers; ?></strong><small>Manage →</small></a>
+    <a class="stat-card stat-gold" href="messages.php"><span>New Messages</span><strong><?php echo (int)$newMessages; ?></strong><small>Read →</small><?php if ((int)$newMessages > 0): ?><span class="stat-badge" title="Unread messages"><?php echo (int)$newMessages; ?></span><?php endif; ?></a>
 </div>
 
 <div class="admin-card">
@@ -127,6 +138,20 @@ $topProducts = db()->query("
             </div>
         <?php endif; ?>
     </div>
+</div>
+
+<div class="admin-card">
+    <h2>🕘 Recent Activity</h2>
+    <?php if (empty($recentActivity)): ?>
+        <p class="empty-note">No status changes yet.</p>
+    <?php else: ?>
+        <?php foreach ($recentActivity as $a): ?>
+            <div class="summary-line" style="display:flex;justify-content:space-between;gap:10px;padding:8px 0;border-bottom:1px solid var(--border);font-size:0.88rem;">
+                <span>Order <a href="order_detail.php?id=<?php echo (int)$a['order_id']; ?>">#<?php echo (int)$a['order_id']; ?></a> → <strong><?php echo ucfirst(e($a['status'])); ?></strong><?php echo !empty($a['note']) ? ' — ' . e($a['note']) : ''; ?></span>
+                <span style="color:var(--muted);white-space:nowrap;"><?php echo date('M j, g:i A', strtotime($a['changed_at'])); ?></span>
+            </div>
+        <?php endforeach; ?>
+    <?php endif; ?>
 </div>
 
 <?php include __DIR__ . '/includes/admin_footer.php'; ?>

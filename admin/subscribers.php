@@ -20,7 +20,24 @@ $subs = $pdo->query("SELECT * FROM newsletter_subscribers ORDER BY created_at DE
 $count = $pdo->query("SELECT COUNT(*) FROM newsletter_subscribers WHERE is_subscribed=1")->fetchColumn();
 ?>
 
-<div class="admin-card"><h1>Newsletter Subscribers</h1><p><?php echo (int)$count; ?> active subscriber(s).</p></div>
+<div class="admin-card"><h1>Newsletter Subscribers</h1><p><?php echo (int)$count; ?> active subscriber(s).</p>
+<?php if ((int)$count > 0): ?>
+<button type="button" class="btn btn-dark btn-sm" id="copyEmails">Copy Active Emails</button>
+<script>
+document.getElementById('copyEmails').addEventListener('click', async function () {
+    var emails = <?php echo json_encode(array_column(array_filter($subs, function ($s) { return $s['is_subscribed']; }), 'email'), JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_AMP); ?>;
+    try {
+        await navigator.clipboard.writeText(emails.join(', '));
+        this.textContent = 'Copied ' + emails.length + ' email(s) ✔';
+        var btn = this;
+        setTimeout(function () { btn.textContent = 'Copy Active Emails'; }, 2500);
+    } catch (e) {
+        this.textContent = 'Copy blocked by browser';
+    }
+});
+</script>
+<?php endif; ?>
+</div>
 
 <div class="admin-card">
     <div class="table-scroll">
