@@ -258,7 +258,7 @@ $myTheme = $user['theme'] ?? 'light';
             </div>
         </div>
 
-        <div class="account-wide" id="favorites">
+        <div class="account-wide">
             <div class="account-orders" id="orders">
                 <h3>My Orders</h3>
                 <?php if (empty($myOrders)): ?>
