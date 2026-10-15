@@ -2062,6 +2062,23 @@ body.dark .btn-dark { color: #fff; }
   border: 1px dashed rgba(44, 92, 168, 0.4);
   font-weight: 700;
   letter-spacing: 0.03em;
+  color: #174a94;
+}
+/* File picker buttons (receipt uploads, admin images) */
+input[type="file"]::file-selector-button {
+  padding: 8px 16px;
+  margin-right: 12px;
+  border: none;
+  border-radius: 8px;
+  background: var(--ink);
+  color: #fff;
+  font-size: 0.82rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+body.dark input[type="file"]::file-selector-button {
+  background: #e8a7b2;
+  color: #211a19;
 }
 .gcash-box label { margin-top: 12px; }
 .saved-chips { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-top: 10px; }
