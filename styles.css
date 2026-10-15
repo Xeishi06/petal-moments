@@ -1625,16 +1625,21 @@ body.dark {
 body.dark .site-header { background: rgba(33, 26, 25, 0.92); }
 body.dark .main-nav a { color: #d6c9c4; }
 body.dark .brand strong { color: #f2e7e2; }
-body.dark .main-nav {
-  background: #2c2321;
-  border-color: rgba(255, 255, 255, 0.12);
+@media (max-width: 1400px) {
+  body.dark .main-nav {
+    background: #2c2321;
+    border-color: rgba(255, 255, 255, 0.12);
+  }
 }
 body.dark .section-heading p,
 body.dark .product-details p,
 body.dark .step p,
 body.dark .event-copy > p { color: #b9a5a0; }
 body.dark .product-card,
-body.dark .category-card,
+body.dark .category-card {
+  background: transparent;
+  border-color: transparent;
+}
 body.dark .auth-card,
 body.dark .account-profile,
 body.dark .checkout-form,
