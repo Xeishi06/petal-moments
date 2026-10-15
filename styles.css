@@ -1470,6 +1470,19 @@ a.floating-card:hover {
 .star-pick span { font-size: 1.9rem; color: #d8cfc9; cursor: pointer; transition: color 0.1s ease, transform 0.1s ease; }
 .star-pick span.lit { color: #e0a100; }
 .star-pick label:hover span { transform: scale(1.12); }
+/* Review prompt modal */
+.review-modal-photo { margin: 12px auto 4px; }
+.review-modal-photo img {
+  width: 120px; height: 120px; object-fit: cover;
+  border-radius: 18px; box-shadow: 0 8px 22px rgba(75, 54, 50, 0.15);
+}
+#reviewModal .star-pick { justify-content: center; margin-top: 12px; }
+#reviewModal .star-pick span { font-size: 2.2rem; }
+#reviewComment {
+  width: 100%; margin-top: 12px; padding: 10px 12px;
+  border: 1px solid var(--border); border-radius: 10px;
+  font-size: 0.9rem; resize: vertical;
+}
 /* Category hopper above product */
 .cat-hopper {
   display: flex;

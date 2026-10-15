@@ -23,6 +23,19 @@ $items = db()->prepare("
 ");
 $items->execute([':id' => $orderId]);
 $items = $items->fetchAll();
+
+// Flowers in this order the customer hasn't reviewed yet → review prompt
+$toReview = db()->prepare("
+    SELECT DISTINCT oi.product_id, p.name, p.image
+    FROM order_items oi
+    JOIN products p ON p.id = oi.product_id
+    LEFT JOIN reviews r ON r.product_id = oi.product_id AND r.user_id = :u
+    WHERE oi.order_id = :id AND r.id IS NULL
+");
+$toReview->execute([':id' => $orderId, ':u' => $_SESSION['user_id']]);
+$toReview = array_map(function ($t) {
+    return ['id' => (int)$t['product_id'], 'name' => $t['name'] ?? 'Arrangement', 'image' => $t['image'] ?? ''];
+}, $toReview->fetchAll());
 ?>
 <?php $pageTitle = 'Order Confirmed | Petal Moments'; include __DIR__ . '/includes/header.php'; ?>
 
@@ -65,5 +78,121 @@ $items = $items->fetchAll();
         </div>
     </div>
 </section>
+
+<?php if (!empty($toReview)): ?>
+<div class="modal-overlay" id="reviewModal" aria-hidden="true">
+    <div class="modal-card auth-modal-card" role="dialog" aria-modal="true" aria-labelledby="reviewModalTitle">
+        <button type="button" class="modal-close" data-review-close aria-label="Close">✕</button>
+        <div class="auth-modal-body">
+            <span class="eyebrow">ENJOY YOUR FLOWERS?</span>
+            <h2 id="reviewModalTitle">Rate <em id="reviewProductName"></em></h2>
+            <div class="review-modal-photo"><img id="reviewProductImg" src="" alt=""></div>
+            <div class="star-pick" id="reviewStars" role="radiogroup" aria-label="Star rating">
+                <label><input type="radio" name="rr" value="1"><span>★</span></label>
+                <label><input type="radio" name="rr" value="2"><span>★</span></label>
+                <label><input type="radio" name="rr" value="3"><span>★</span></label>
+                <label><input type="radio" name="rr" value="4"><span>★</span></label>
+                <label><input type="radio" name="rr" value="5"><span>★</span></label>
+            </div>
+            <textarea id="reviewComment" rows="2" maxlength="1000" placeholder="Optional — how were the flowers?"></textarea>
+            <div class="modal-message" id="reviewMsg" role="status"></div>
+            <div class="auth-modal-actions">
+                <button type="button" class="btn btn-light" id="reviewSkip">Skip</button>
+                <button type="button" class="btn btn-primary" id="reviewSend">Submit ★</button>
+            </div>
+            <p class="modal-note">Totally optional — skip any time.</p>
+        </div>
+    </div>
+</div>
+<script>
+(function () {
+    var queue = <?php echo json_encode($toReview, JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_AMP); ?>;
+    var csrf = <?php echo json_encode(csrf_token(), JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_AMP); ?>;
+    var modal = document.getElementById('reviewModal');
+    if (!modal || !queue.length) return;
+    var idx = 0, rating = 0;
+    var nameEl = document.getElementById('reviewProductName');
+    var imgEl = document.getElementById('reviewProductImg');
+    var stars = document.getElementById('reviewStars');
+    var commentEl = document.getElementById('reviewComment');
+    var msgEl = document.getElementById('reviewMsg');
+    var starSpans = Array.prototype.slice.call(stars.querySelectorAll('span'));
+    function paint(n) {
+        starSpans.forEach(function (sp, i) { sp.classList.toggle('lit', i < n); });
+    }
+    function open() {
+        modal.classList.add('open');
+        modal.setAttribute('aria-hidden', 'false');
+        document.body.classList.add('modal-open');
+    }
+    function close() {
+        modal.classList.remove('open');
+        modal.setAttribute('aria-hidden', 'true');
+        document.body.classList.remove('modal-open');
+    }
+    function show(i) {
+        idx = i; rating = 0;
+        nameEl.textContent = queue[i].name;
+        imgEl.src = queue[i].image;
+        imgEl.alt = queue[i].name;
+        commentEl.value = '';
+        msgEl.textContent = '';
+        msgEl.className = 'modal-message';
+        stars.querySelectorAll('input').forEach(function (r) { r.checked = false; });
+        paint(0);
+        open();
+    }
+    starSpans.forEach(function (sp, i) {
+        sp.parentElement.addEventListener('mouseenter', function () { paint(i + 1); });
+        sp.parentElement.addEventListener('click', function () {
+            rating = i + 1;
+            stars.querySelectorAll('input')[i].checked = true;
+            paint(rating);
+        });
+    });
+    stars.addEventListener('mouseleave', function () { paint(rating); });
+    document.querySelectorAll('[data-review-close]').forEach(function (b) {
+        b.addEventListener('click', close);
+    });
+    modal.addEventListener('click', function (e) { if (e.target === modal) close(); });
+    document.addEventListener('keydown', function (e) { if (e.key === 'Escape') close(); });
+    document.getElementById('reviewSkip').addEventListener('click', function () {
+        if (idx + 1 < queue.length) { show(idx + 1); } else { close(); }
+    });
+    document.getElementById('reviewSend').addEventListener('click', async function () {
+        if (!rating) {
+            msgEl.textContent = 'Please tap a star rating first — or Skip.';
+            msgEl.className = 'modal-message error';
+            return;
+        }
+        var body = new FormData();
+        body.append('product_id', queue[idx].id);
+        body.append('rating', rating);
+        body.append('comment', commentEl.value);
+        body.append('csrf', csrf);
+        try {
+            var res = await fetch('review_submit.php', { method: 'POST', body: body });
+            var json = await res.json();
+            if (json.ok) {
+                if (idx + 1 < queue.length) { show(idx + 1); }
+                else {
+                    msgEl.textContent = 'Thanks for your reviews! ♥';
+                    msgEl.className = 'modal-message success';
+                    setTimeout(close, 1200);
+                }
+            } else {
+                msgEl.textContent = json.error || 'Something went wrong.';
+                msgEl.className = 'modal-message error';
+            }
+        } catch (err) {
+            msgEl.textContent = 'Network error. Please try again.';
+            msgEl.className = 'modal-message error';
+        }
+    });
+    // Gentle delay so the confetti moment lands first
+    setTimeout(function () { show(0); }, 1200);
+})();
+</script>
+<?php endif; ?>
 
 <?php include __DIR__ . '/includes/footer.php'; ?>
