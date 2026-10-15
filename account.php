@@ -23,7 +23,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['form'] ?? '') === 'profile
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['form'] ?? '') === 'password') {
     if (!verify_csrf($_POST['csrf'] ?? '')) {
         flash('error', 'Session expired. Please try again.');
-        redirect('account.php#security');
+        redirect('account.php?tab=security');
     }
     $current = $_POST['current_password'] ?? '';
     $new     = $_POST['new_password'] ?? '';
@@ -42,13 +42,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['form'] ?? '') === 'passwor
             ->execute([':pw' => password_hash($new, PASSWORD_BCRYPT), ':id' => $_SESSION['user_id']]);
         flash('success', 'Password changed. Use it next time you log in.');
     }
-    redirect('account.php#security');
+    redirect('account.php?tab=security');
 }
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['form'] ?? '') === 'payment_add') {
     if (!verify_csrf($_POST['csrf'] ?? '')) {
         flash('error', 'Session expired. Please try again.');
-        redirect('account.php#payments');
+        redirect('account.php?tab=payments');
     }
     $label  = mb_substr(trim($_POST['plabel'] ?? ''), 0, 60);
     $method = ($_POST['pmethod'] ?? 'gcash') === 'card' ? 'card' : 'gcash';
@@ -62,7 +62,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['form'] ?? '') === 'payment
             ->execute([':u' => $_SESSION['user_id'], ':l' => $label, ':m' => $method, ':d' => $detail]);
         flash('success', 'Payment method saved.');
     }
-    redirect('account.php#payments');
+    redirect('account.php?tab=payments');
 }
 
 if (isset($_GET['delpay'])) {
@@ -73,7 +73,7 @@ if (isset($_GET['delpay'])) {
             ->execute([':id' => (int)$_GET['delpay'], ':u' => $_SESSION['user_id']]);
         flash('success', 'Saved payment removed.');
     }
-    redirect('account.php#payments');
+    redirect('account.php?tab=payments');
 }
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['form'] ?? '') === 'theme') {
@@ -86,7 +86,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['form'] ?? '') === 'theme')
         $_SESSION['theme'] = $theme;
         flash('success', $theme === 'dark' ? 'Dark mode on. Easy on the eyes. 🌙' : 'Light mode on. ☀️');
     }
-    redirect('account.php#appearance');
+    redirect('account.php?tab=appearance');
 }
 
 $stmt = db()->prepare("SELECT * FROM users WHERE id = :id");
@@ -125,14 +125,14 @@ $myReviews = db()->prepare("
 $myReviews->execute([':id' => $_SESSION['user_id']]);
 $myReviews = $myReviews->fetchAll();
 
-$favPreview = db()->prepare("
+$favAll = db()->prepare("
     SELECT p.id, p.name, p.price, p.image
     FROM wishlist w JOIN products p ON p.id = w.product_id AND p.is_active = 1
     WHERE w.user_id = :id
-    ORDER BY w.created_at DESC LIMIT 4
+    ORDER BY w.created_at DESC
 ");
-$favPreview->execute([':id' => $_SESSION['user_id']]);
-$favPreview = $favPreview->fetchAll();
+$favAll->execute([':id' => $_SESSION['user_id']]);
+$favAll = $favAll->fetchAll();
 
 $myPayments = db()->prepare("SELECT * FROM saved_payments WHERE user_id = :id ORDER BY created_at DESC");
 $myPayments->execute([':id' => $_SESSION['user_id']]);
@@ -148,27 +148,40 @@ $myTheme = $user['theme'] ?? 'light';
             <h2>Hello, <em><?php echo e($user['first_name']); ?></em></h2>
         </div>
 
-        <div class="hub-stats">
-            <a class="hub-stat" href="my-orders.php"><span><?php echo count($myOrders); ?></span><small>Orders</small></a>
-            <a class="hub-stat" href="my-orders.php"><span>₱<?php echo number_format($statSpent, 2); ?></span><small>Total spent</small></a>
-            <a class="hub-stat" href="wishlist.php"><span><?php echo $statFav; ?></span><small>Favorites</small></a>
-            <a class="hub-stat" href="#reviews"><span><?php echo $statRev; ?></span><small>Reviews</small></a>
+$validTabs = ['account', 'security', 'payments', 'appearance', 'favorites', 'reviews'];
+$tab = $_GET['tab'] ?? 'account';
+if (!in_array($tab, $validTabs, true)) { $tab = 'account'; }
+?>
+<?php $pageTitle = 'My Account | Petal Moments'; include __DIR__ . '/includes/header.php'; ?>
+
+<section class="section">
+    <div class="container">
+        <div class="section-heading">
+            <span class="eyebrow">SETTINGS</span>
+            <h2>Hello, <em><?php echo e($user['first_name']); ?></em></h2>
         </div>
 
-        <div class="acct-subnav">
-            <a href="#profile">Profile</a>
-            <a href="#security">Security</a>
-            <a href="#payments">Payments</a>
-            <a href="#appearance">Appearance</a>
-            <a href="my-orders.php">Orders →</a>
-            <a href="#favorites">Favorites</a>
-            <a href="#reviews">Reviews</a>
-        </div>
+        <div class="settings-layout">
+            <aside class="settings-side">
+                <a href="account.php?tab=account" class="<?php echo $tab === 'account' ? 'active' : ''; ?>">Account info</a>
+                <a href="account.php?tab=security" class="<?php echo $tab === 'security' ? 'active' : ''; ?>">Security</a>
+                <a href="account.php?tab=payments" class="<?php echo $tab === 'payments' ? 'active' : ''; ?>">Payment methods</a>
+                <a href="account.php?tab=appearance" class="<?php echo $tab === 'appearance' ? 'active' : ''; ?>">Appearance</a>
+                <a href="account.php?tab=favorites" class="<?php echo $tab === 'favorites' ? 'active' : ''; ?>">Favorites</a>
+                <a href="account.php?tab=reviews" class="<?php echo $tab === 'reviews' ? 'active' : ''; ?>">My reviews</a>
+                <a href="my-orders.php">Your orders →</a>
+            </aside>
 
-        <div class="account-grid">
-            <div class="account-profile" id="profile">
-                <h3>Profile</h3>
-                <form method="post" action="account.php#profile">
+            <div class="settings-panel">
+                <?php if ($tab === 'account'): ?>
+                <h3>Account info</h3>
+                <div class="settings-row"><span>Display name</span><strong><?php echo e($user['first_name'] . ' ' . $user['last_name']); ?></strong></div>
+                <div class="settings-row"><span>Email</span><strong><?php echo e($user['email']); ?> <small class="chip chip-yes">Verified</small></strong></div>
+                <div class="settings-row"><span>Phone</span><strong><?php echo e($user['phone'] ?: '—'); ?></strong></div>
+                <div class="settings-row"><span>Address</span><strong><?php echo e($user['address'] ?: '—'); ?></strong></div>
+                <div class="settings-row"><span>Member since</span><strong><?php echo date('M Y', strtotime($user['created_at'])); ?></strong></div>
+                <h3 style="margin-top:22px;">Edit profile</h3>
+                <form method="post" action="account.php?tab=account">
                     <input type="hidden" name="form" value="profile">
                     <div class="form-row">
                         <div>
@@ -180,20 +193,17 @@ $myTheme = $user['theme'] ?? 'light';
                             <input type="text" name="last_name" value="<?php echo e($user['last_name']); ?>" required>
                         </div>
                     </div>
-                    <label>Email</label>
-                    <input type="email" value="<?php echo e($user['email']); ?>" disabled>
                     <label>Phone</label>
                     <input type="text" name="phone" value="<?php echo e($user['phone']); ?>">
                     <label>Address</label>
                     <input type="text" name="address" value="<?php echo e($user['address']); ?>">
-                    <button type="submit" class="btn btn-primary">Save Changes</button>
+                    <button type="submit" class="btn btn-primary" style="margin-top:14px;">Save Changes</button>
                 </form>
-            </div>
 
-            <div class="account-profile" id="security">
-                <h3>🔒 Security</h3>
-                <p class="acct-note">Signed in as <?php echo e($user['email']); ?> • member since <?php echo date('M Y', strtotime($user['created_at'])); ?></p>
-                <form method="post" action="account.php#security">
+                <?php elseif ($tab === 'security'): ?>
+                <h3>Security</h3>
+                <p class="acct-note">Signed in as <?php echo e($user['email']); ?>. Change your password below — you'll need the current one.</p>
+                <form method="post" action="account.php?tab=security">
                     <input type="hidden" name="form" value="password">
                     <input type="hidden" name="csrf" value="<?php echo e(csrf_token()); ?>">
                     <label>Current password *</label>
@@ -202,14 +212,11 @@ $myTheme = $user['theme'] ?? 'light';
                     <input type="password" name="new_password" required autocomplete="new-password">
                     <label>Confirm new password *</label>
                     <input type="password" name="confirm_password" required autocomplete="new-password">
-                    <button type="submit" class="btn btn-dark">Change Password</button>
+                    <button type="submit" class="btn btn-dark" style="margin-top:14px;">Change Password</button>
                 </form>
-            </div>
-        </div>
 
-        <div class="account-grid">
-            <div class="account-profile" id="payments">
-                <h3>💳 Saved Payments</h3>
+                <?php elseif ($tab === 'payments'): ?>
+                <h3>Payment methods</h3>
                 <p class="acct-note">GCash numbers appear as one-tap picks at checkout. Cards are reminders only — pay by card in person.</p>
                 <?php if (!empty($myPayments)): ?>
                     <?php foreach ($myPayments as $pm): ?>
@@ -218,13 +225,14 @@ $myTheme = $user['theme'] ?? 'light';
                             <strong><?php echo $pm['method'] === 'gcash' ? 'GCash' : '💳 Card'; ?> — <?php echo e($pm['label']); ?></strong>
                             <small><?php echo e($pm['detail']); ?></small>
                         </div>
-                        <a class="remove-link" href="account.php?delpay=<?php echo (int)$pm['id']; ?>&csrf=<?php echo e(csrf_token()); ?>" onclick="return confirm('Remove this saved payment?');">Remove</a>
+                        <a class="remove-link" href="account.php?tab=payments&delpay=<?php echo (int)$pm['id']; ?>&csrf=<?php echo e(csrf_token()); ?>" onclick="return confirm('Remove this saved payment?');">Remove</a>
                     </div>
                     <?php endforeach; ?>
                 <?php else: ?>
                     <p class="empty-state">No saved payments yet.</p>
                 <?php endif; ?>
-                <form method="post" action="account.php#payments" class="pay-add">
+                <h3 style="margin-top:20px;">Add payment method</h3>
+                <form method="post" action="account.php?tab=payments" class="pay-add">
                     <input type="hidden" name="form" value="payment_add">
                     <input type="hidden" name="csrf" value="<?php echo e(csrf_token()); ?>">
                     <div class="form-row">
@@ -244,23 +252,33 @@ $myTheme = $user['theme'] ?? 'light';
                     <input type="text" name="pdetail" maxlength="100" placeholder="e.g. 09171234567" required>
                     <button type="submit" class="btn btn-dark btn-small" style="margin-top:10px;">Save Payment</button>
                 </form>
-            </div>
 
-            <div class="account-profile" id="appearance">
-                <h3>🎨 Appearance</h3>
-                <p class="acct-note">Easy on the eyes for late-night flower shopping.</p>
-                <form method="post" action="account.php#appearance" class="theme-row">
+                <?php elseif ($tab === 'appearance'): ?>
+                <h3>Appearance</h3>
+                <p class="acct-note">Easy on the eyes for late-night flower shopping. Applies to your whole visit.</p>
+                <form method="post" action="account.php?tab=appearance" class="theme-row">
                     <input type="hidden" name="form" value="theme">
                     <input type="hidden" name="csrf" value="<?php echo e(csrf_token()); ?>">
                     <button type="submit" name="theme" value="light" class="theme-pick<?php echo $myTheme !== 'dark' ? ' picked' : ''; ?>" aria-pressed="<?php echo $myTheme !== 'dark' ? 'true' : 'false'; ?>">☀️ Light</button>
                     <button type="submit" name="theme" value="dark" class="theme-pick<?php echo $myTheme === 'dark' ? ' picked' : ''; ?>" aria-pressed="<?php echo $myTheme === 'dark' ? 'true' : 'false'; ?>">🌙 Dark</button>
                 </form>
-            </div>
-        </div>
 
-        <div class="account-wide">
-            <div class="account-orders">
-                <h3 id="reviews">My Reviews</h3>
+                <?php elseif ($tab === 'favorites'): ?>
+                <h3>Favorites <a class="text-link" style="font-size:0.8rem;" href="wishlist.php">Open full page →</a></h3>
+                <?php if (empty($favAll)): ?>
+                    <p class="empty-state">Nothing saved yet. <a href="shop.php">Find flowers you love →</a></p>
+                <?php else: ?>
+                    <div class="fav-strip">
+                        <?php foreach ($favAll as $fp): ?>
+                        <a class="fav-thumb" href="product.php?id=<?php echo (int)$fp['id']; ?>" title="<?php echo e($fp['name']); ?>">
+                            <img src="<?php echo e($fp['image'] ?: 'https://images.unsplash.com/photo-1490750967868-88aa4486c946?auto=format&fit=crop&w=200&q=70'); ?>" alt="<?php echo e($fp['name']); ?>">
+                        </a>
+                        <?php endforeach; ?>
+                    </div>
+                <?php endif; ?>
+
+                <?php elseif ($tab === 'reviews'): ?>
+                <h3>My reviews</h3>
                 <?php if (empty($myReviews)): ?>
                     <p class="empty-state">No reviews yet — they appear here after you rate your flowers.</p>
                 <?php else: ?>
@@ -271,18 +289,6 @@ $myTheme = $user['theme'] ?? 'light';
                     </div>
                     <?php endforeach; ?>
                 <?php endif; ?>
-
-                <h3 id="favorites" style="margin-top:28px;">My Favorites <a class="text-link" style="font-size:0.8rem;" href="wishlist.php">View all →</a></h3>
-                <?php if (empty($favPreview)): ?>
-                    <p class="empty-state">Nothing saved yet. <a href="shop.php">Find flowers you love →</a></p>
-                <?php else: ?>
-                    <div class="fav-strip">
-                        <?php foreach ($favPreview as $fp): ?>
-                        <a class="fav-thumb" href="product.php?id=<?php echo (int)$fp['id']; ?>" title="<?php echo e($fp['name']); ?>">
-                            <img src="<?php echo e($fp['image'] ?: 'https://images.unsplash.com/photo-1490750967868-88aa4486c946?auto=format&fit=crop&w=200&q=70'); ?>" alt="<?php echo e($fp['name']); ?>">
-                        </a>
-                        <?php endforeach; ?>
-                    </div>
                 <?php endif; ?>
             </div>
         </div>
