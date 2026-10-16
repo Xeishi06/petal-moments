@@ -8,6 +8,12 @@
   --ink: #302625;
   --muted: #756866;
   --white: #ffffff;
+  --field: #ffffff;
+  --surface: #ffffff;
+  --selected: #fdf3f1;
+  --accent-text: #8d4d58;
+  --success-text: #2c7a3f;
+  --error-text: #b34f4f;
   --border: rgba(48, 38, 37, 0.12);
   --shadow: 0 20px 60px rgba(75, 54, 50, 0.10);
   --radius-lg: 30px;
@@ -23,13 +29,29 @@
 
 html {
   scroll-behavior: smooth;
-  color-scheme: light dark;
+  color-scheme: light;
 }
+
+html[data-theme="dark"] { color-scheme: dark; }
 
 input,
 select,
 textarea {
   color: var(--ink);
+  background-color: var(--field);
+  accent-color: var(--rose);
+  font: inherit;
+}
+
+input::placeholder,
+textarea::placeholder { color: var(--muted); opacity: 1; }
+
+input:autofill,
+textarea:autofill,
+select:autofill {
+  box-shadow: 0 0 0 1000px var(--field) inset;
+  -webkit-text-fill-color: var(--ink);
+  caret-color: var(--ink);
 }
 
 body {
@@ -126,7 +148,7 @@ button {
   font-family: "Playfair Display", serif;
   color: var(--rose-dark);
   font-size: 1.3rem;
-  background: #fff;
+  background: var(--surface);
 }
 
 .brand strong,
@@ -242,7 +264,7 @@ button {
 
 .btn:disabled {
   opacity: 0.65;
-  cursor: wait;
+  cursor: not-allowed;
   transform: none;
 }
 
@@ -1380,13 +1402,17 @@ a.floating-card:hover {
   border: 1px solid var(--border);
   border-radius: 10px;
   font-size: 0.92rem;
-  background: #fff;
+  background: var(--field);
 }
 .auth-card form textarea { resize: vertical; }
 .auth-card form .btn { margin-top: 22px; width: 100%; }
 .auth-card .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
 .auth-alt { text-align: center; margin-top: 18px; font-size: 0.85rem; color: var(--muted); }
 .auth-alt a { color: var(--rose-dark); font-weight: 600; }
+.password-help { margin-top: 10px; text-align: right; font-size: 0.82rem; }
+.password-help a, .recovery-message a { color: var(--accent-text); font-weight: 600; }
+.password-help a:hover, .recovery-message a:hover { text-decoration: underline; }
+.recovery-message { margin: 18px 0; padding: 16px; border: 1px solid var(--border); border-radius: 12px; background: var(--paper); color: var(--ink); font-size: 0.9rem; }
 
 .shop-filter {
   display: flex;
@@ -1403,7 +1429,7 @@ a.floating-card:hover {
   border: 1px solid var(--border);
   border-radius: 999px;
   font-size: 0.9rem;
-  background: #fff;
+  background: var(--field);
   outline: none;
   transition: border-color 0.15s ease, box-shadow 0.15s ease;
 }
@@ -1418,7 +1444,7 @@ a.floating-card:hover {
   border-radius: 999px;
   font-size: 0.82rem;
   font-weight: 600;
-  background: #fff url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M1 1l4 4 4-4' fill='none' stroke='%238d4d58' stroke-width='1.6' stroke-linecap='round'/%3E%3C/svg%3E") no-repeat right 16px center;
+  background: var(--field) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M1 1l4 4 4-4' fill='none' stroke='%23b76e79' stroke-width='1.6' stroke-linecap='round'/%3E%3C/svg%3E") no-repeat right 16px center;
   color: var(--ink);
   appearance: none;
   cursor: pointer;
@@ -1592,7 +1618,7 @@ a.floating-card:hover {
 .settings-panel select,
 .settings-panel textarea {
   width: 100%; padding: 11px 13px; border: 1px solid var(--border);
-  border-radius: 10px; font-size: 0.9rem; background: #fff;
+  border-radius: 10px; font-size: 0.9rem; background: var(--field);
 }
 .settings-row {
   display: flex;
@@ -1624,7 +1650,7 @@ a.floating-card:hover {
 .pay-edit { margin-top: 16px; padding-top: 16px; border-top: 1px dashed var(--border); }
 .pay-add select {
   width: 100%; padding: 11px 13px; border: 1px solid var(--border);
-  border-radius: 10px; font-size: 0.9rem; background: #fff;
+  border-radius: 10px; font-size: 0.9rem; background: var(--field);
 }
 .theme-row { display: flex; gap: 10px; }
 .theme-pick {
@@ -1637,11 +1663,20 @@ a.floating-card:hover {
   box-shadow: 0 0 0 3px rgba(183, 110, 121, 0.12);
 }
 /* ---------- Dark mode ---------- */
+html[data-theme="dark"],
 body.dark {
+  color-scheme: dark;
   --cream: #211a19;
   --paper: #2c2321;
   --ink: #f2e7e2;
   --muted: #b9a5a0;
+  --field: #211a19;
+  --surface: #2c2321;
+  --selected: #4a2c31;
+  --accent-text: #e8a7b2;
+  --success-text: #9ed6a8;
+  --error-text: #f5b5b5;
+  --sage: #b2c4a7;
   --border: rgba(255, 255, 255, 0.12);
   --shadow: 0 20px 60px rgba(0, 0, 0, 0.35);
 }
@@ -1680,7 +1715,7 @@ body.dark .hub-stat {
 body.dark input,
 body.dark select,
 body.dark textarea {
-  background: #211a19;
+  background-color: var(--field);
   border-color: rgba(255, 255, 255, 0.14);
   color: #f2e7e2;
 }
@@ -1693,12 +1728,12 @@ body.dark input[type="date"],
 body.dark input[type="time"],
 body.dark select,
 body.dark textarea {
-  background: #211a19;
+  background-color: var(--field);
   border-color: rgba(255, 255, 255, 0.14);
   color: #f2e7e2;
 }
 body.dark input::placeholder,
-body.dark textarea::placeholder { color: #8d7a76; }
+body.dark textarea::placeholder { color: var(--muted); }
 body.dark .how-it-works,
 body.dark .about-section { background: #241d1c; }
 body.dark .event-section { background: #2e2624; }
@@ -1708,7 +1743,7 @@ body.dark .newsletter .eyebrow { color: #e8a7b2; }
 body.dark .newsletter h2 { color: #f5ebe7; }
 body.dark .newsletter p { color: rgba(245, 235, 231, 0.82); }
 body.dark .newsletter-form input { color: #f5ebe7; }
-body.dark .newsletter-form input::placeholder { color: #8d7a76; }
+body.dark .newsletter-form input::placeholder { color: var(--muted); }
 body.dark .footer { background: #241d1c; }
 body.dark .fulfill-pill span,
 body.dark .variant-pill span,
@@ -1775,7 +1810,9 @@ body.dark .categories { background: transparent; }
 body.dark .category-card h3 { color: #f2e7e2; }
 body.dark .gallery-thumbs { background: #211a19; }
 body.dark .brand-mark { background: #2c2321; }
-body.dark a { color: #d89aa5; }
+body.dark .empty-state a,
+body.dark .back-link a,
+body.dark .auth-alt a { color: var(--accent-text); }
 body.dark .section-heading em,
 body.dark h1 em,
 body.dark h2 em,
@@ -1783,6 +1820,50 @@ body.dark .sold-inline,
 body.dark .text-link { color: #d89aa5; }
 body.dark .btn-primary { color: #fff; }
 body.dark .btn-dark { color: #fff; }
+/* Component states share the selected palette instead of fixed light surfaces. */
+body.dark .feature-icon,
+body.dark .step-icon { background: var(--selected); color: var(--accent-text); }
+body.dark .testimonial-section { background: var(--surface); }
+body.dark .product-detail-info .price,
+body.dark .addon-info span,
+body.dark .hub-stat span,
+body.dark .service-list span,
+body.dark .saved-chip,
+body.dark .event-form .req,
+body.dark .btn-fav.active { color: var(--accent-text); }
+body.dark .gcash-box .gcash-num {
+  background: var(--field);
+  color: #bcd3f5;
+  border-color: rgba(120, 160, 220, 0.5);
+}
+body.dark .badge-pending { background: #45371f; color: #f2ce7d; }
+body.dark .badge-processing { background: #1e2c44; color: #bcd3f5; }
+body.dark .badge-delivered { background: #1f3a26; color: var(--success-text); }
+body.dark .badge-cancelled { background: #4a2222; color: var(--error-text); }
+body.dark .stock-status .out,
+body.dark .remove-link,
+body.dark .modal-message.error { color: var(--error-text); }
+body.dark .modal-message.success { color: var(--success-text); }
+body.dark .settings-row,
+body.dark .pay-row,
+body.dark .addon-row,
+body.dark .service-list > div { border-color: var(--border); }
+body.dark .fav-btn.active { background: var(--rose); color: #fff; }
+body.dark .hero-arrow:hover,
+body.dark .view-btn:hover { background: var(--selected); }
+body.dark .cat-hopper a.current,
+body.dark .variant-pill.picked span { color: #f6d9de; }
+body.dark .btn-light { color: var(--ink); }
+
+:is(input, select, textarea, button, a):focus-visible {
+  outline: 2px solid var(--accent-text);
+  outline-offset: 3px;
+}
+.variant-pill input:focus-visible + span,
+.fulfill-pill input:focus-visible + span {
+  outline: 2px solid var(--accent-text);
+  outline-offset: 3px;
+}
 .sold-inline { color: var(--rose-dark); }
 .stars { color: #e0a100; letter-spacing: 0.1em; }
 /* Reviews */
@@ -1975,8 +2056,8 @@ body.dark .btn-dark { color: #fff; }
   margin-top: 4px;
   padding: 2px 10px;
   border-radius: 999px;
-  background: #fdf3f1;
-  color: var(--rose-dark);
+  background: var(--selected);
+  color: var(--accent-text);
   font-size: 0.72rem;
   font-weight: 700;
 }
@@ -2259,7 +2340,7 @@ body.dark .saved-chip { background: #211a19; }
   border: 1px solid var(--border);
   border-radius: 10px;
   font-size: 0.9rem;
-  background: #fffdfb;
+  background: var(--field);
   color: var(--ink);
   outline: none;
   transition: border-color 0.15s ease, box-shadow 0.15s ease;

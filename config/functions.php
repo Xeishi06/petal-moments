@@ -76,37 +76,48 @@ function pw_change_hit()
     $_SESSION['pw_attempts'][] = time();
 }
 
-// Login brake: max 5 failed tries per email per 15 minutes (per browser session).
+// Shared, locked storage: opening a new browser session cannot reset the limit.
+function login_attempts($email, $action = 'read')
+{
+    $dir = sys_get_temp_dir() . '/petal-login-' . substr(hash('sha256', __DIR__), 0, 12);
+    if (!is_dir($dir) && !mkdir($dir, 0700, true) && !is_dir($dir)) {
+        throw new RuntimeException('Login protection storage is unavailable.');
+    }
+    $file = fopen($dir . '/' . hash('sha256', strtolower(trim($email))) . '.json', 'c+');
+    if (!$file || !flock($file, LOCK_EX)) {
+        throw new RuntimeException('Login protection storage is unavailable.');
+    }
+    try {
+        $attempts = json_decode(stream_get_contents($file), true) ?: [];
+        $now = time();
+        $attempts = array_values(array_filter($attempts, function ($t) use ($now) { return $now - $t < 900; }));
+        if ($action === 'hit') { $attempts[] = $now; }
+        if ($action === 'clear') { $attempts = []; }
+        rewind($file);
+        ftruncate($file, 0);
+        fwrite($file, json_encode($attempts));
+        fflush($file);
+        return count($attempts);
+    } finally {
+        flock($file, LOCK_UN);
+        fclose($file);
+    }
+}
+
+// Max 5 failed tries per email per 15 minutes, across browser sessions.
 function login_allowed($email)
 {
-    start_session();
-    $key = strtolower(trim($email));
-    $now = time();
-    $all = $_SESSION['login_attempts'] ?? [];
-    $all[$key] = array_values(array_filter(
-        $all[$key] ?? [],
-        function ($t) use ($now) { return ($now - $t) < 900; }
-    ));
-    $_SESSION['login_attempts'] = $all;
-    return count($all[$key]) < 5;
+    return login_attempts($email) < 5;
 }
 
 function login_hit($email)
 {
-    start_session();
-    $key = strtolower(trim($email));
-    $all = $_SESSION['login_attempts'] ?? [];
-    $all[$key][] = time();
-    $_SESSION['login_attempts'] = $all;
+    login_attempts($email, 'hit');
 }
 
 function login_clear($email)
 {
-    start_session();
-    $key = strtolower(trim($email));
-    $all = $_SESSION['login_attempts'] ?? [];
-    unset($all[$key]);
-    $_SESSION['login_attempts'] = $all;
+    login_attempts($email, 'clear');
 }
 
 function is_logged_in()
@@ -116,7 +127,63 @@ function is_logged_in()
 
 function is_admin()
 {
-    return is_logged_in() && (($_SESSION['role'] ?? '') === 'admin');
+    return current_role() === 'admin';
+}
+
+function current_role()
+{
+    start_session();
+    if (!is_logged_in()) { return ''; }
+    // Refresh privileges on every request: demotions and disabling take effect immediately.
+    static $roles = [];
+    $id = (int)$_SESSION['user_id'];
+    if (!array_key_exists($id, $roles)) {
+        $stmt = db()->prepare('SELECT role FROM users WHERE id = :id AND is_active = 1');
+        $stmt->execute([':id' => $id]);
+        $roles[$id] = $stmt->fetchColumn() ?: '';
+    }
+    $_SESSION['role'] = $roles[$id];
+    return $roles[$id];
+}
+
+function is_staff()
+{
+    return in_array(current_role(), ['admin', 'employee'], true);
+}
+
+function staff_home()
+{
+    return is_admin() ? 'admin/index.php' : 'admin/employee.php';
+}
+
+function require_staff()
+{
+    if (!is_staff()) {
+        http_response_code(403);
+        exit('Access denied. Staff access is required.');
+    }
+}
+
+function order_status_options($order, $role = null)
+{
+    $role = $role ?? current_role();
+    if ($role === 'admin') { return ['pending', 'processing', 'delivered', 'cancelled']; }
+    if ($role !== 'employee') { return []; }
+    $options = [$order['status']];
+    $needsVerification = in_array($order['payment_method'], ['gcash', 'card'], true) && empty($order['pay_verified']);
+    if (!$needsVerification && $order['status'] === 'pending') { $options[] = 'processing'; }
+    if (!$needsVerification && $order['status'] === 'processing') { $options[] = 'delivered'; }
+    return $options;
+}
+
+function check_order_transition($pdo, $id, $status)
+{
+    $stmt = $pdo->prepare('SELECT status, payment_method, pay_verified FROM orders WHERE id = :id FOR UPDATE');
+    $stmt->execute([':id' => $id]);
+    $order = $stmt->fetch();
+    if (!$order || !in_array($status, order_status_options($order), true)) {
+        throw new RuntimeException('This status change is not allowed. Payment verification and cancellations require an admin.');
+    }
 }
 
 function require_login()
@@ -124,7 +191,9 @@ function require_login()
     start_session();
     if (!is_logged_in()) {
         flash('error', 'Please log in to continue.');
-        redirect('login.php');
+        $next = basename($_SERVER['SCRIPT_NAME'] ?? 'checkout.php');
+        if ($next === 'checkout.php' && ($_GET['mode'] ?? '') === 'buynow') { $next .= '?mode=buynow'; }
+        redirect('login.php?next=' . rawurlencode($next));
     }
 }
 
@@ -139,6 +208,7 @@ function require_admin()
 
 function login_user($user)
 {
+    session_regenerate_id(true);
     $_SESSION['user_id'] = $user['id'];
     $_SESSION['name']    = $user['first_name'] . ' ' . $user['last_name'];
     $_SESSION['email']   = $user['email'];
@@ -209,6 +279,28 @@ function cart_save_lines($store, $lines)
     $_SESSION[$store] = $lines;
 }
 
+// Caller must keep this transaction open through the stock deduction.
+function lock_checkout_stock($pdo, $items)
+{
+    if (!$pdo->inTransaction()) { throw new LogicException('Stock checks require a transaction.'); }
+    $required = [];
+    foreach ($items as $item) {
+        $required[$item['id']] = ($required[$item['id']] ?? 0) + (int)$item['quantity'];
+    }
+    ksort($required, SORT_NUMERIC);
+    $check = $pdo->prepare('SELECT id, price, sale_price, stock, is_active FROM products WHERE id = :id FOR UPDATE');
+    $locked = [];
+    foreach ($required as $productId => $quantity) {
+        $check->execute([':id' => $productId]);
+        $live = $check->fetch();
+        if (!$live || !$live['is_active'] || $quantity < 1 || (int)$live['stock'] < $quantity) {
+            throw new RuntimeException('This product only has ' . (int)($live['stock'] ?? 0) . ' available. Please review the combined quantities in your cart.');
+        }
+        $locked[$productId] = $live;
+    }
+    return $locked;
+}
+
 // Shop settings (admin-editable, with fallback defaults)
 function setting($key, $default = '')
 {
@@ -249,7 +341,7 @@ function pay_label($method)
     return $labels[$method] ?? ucwords(str_replace('_', ' ', (string)$method));
 }
 
-// Units sold per product (paid pipeline only — cancelled excluded)
+// Completed orders only: pending orders are not sales.
 function product_sold_counts($ids)
 {
     $ids = array_map('intval', (array)$ids);
@@ -261,7 +353,7 @@ function product_sold_counts($ids)
         foreach (db()->query("
             SELECT oi.product_id, COALESCE(SUM(oi.quantity), 0) AS sold
             FROM order_items oi
-            JOIN orders o ON o.id = oi.order_id AND o.status != 'cancelled'
+            JOIN orders o ON o.id = oi.order_id AND o.status = 'delivered'
             WHERE oi.product_id IN ($in)
             GROUP BY oi.product_id
         ")->fetchAll() as $r) {

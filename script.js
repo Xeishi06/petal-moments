@@ -1,6 +1,11 @@
 const menuBtn = document.getElementById("menuBtn");
 const mainNav = document.getElementById("mainNav");
 
+// Back/forward can restore a whole page with an outdated account appearance.
+window.addEventListener("pageshow", (event) => {
+  if (event.persisted) window.location.reload();
+});
+
 menuBtn.addEventListener("click", () => {
   const isOpen = mainNav.classList.toggle("open");
   menuBtn.setAttribute("aria-expanded", isOpen);

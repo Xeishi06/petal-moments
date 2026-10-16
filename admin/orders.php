@@ -1,11 +1,16 @@
 <?php
 require_once __DIR__ . '/../config/functions.php';
 start_session();
-require_admin();
+require_staff();
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && !verify_csrf($_POST['csrf'] ?? '')) {
+    http_response_code(403);
+    exit('Session expired. Refresh the orders page and try again.');
+}
 
 $pdo = db();
 
 if (isset($_GET['export']) && $_GET['export'] === 'csv') {
+    require_admin();
     $rows = $pdo->query("
         SELECT o.id, o.created_at, o.status, o.total_amount, o.delivery_fee, o.fulfillment,
                o.delivery_address, o.delivery_date, o.payment_method, o.payment_ref, o.sender_no,
@@ -61,6 +66,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['form'] ?? '') === 'status'
     if (in_array($status, $allowed, true)) {
         $pdo->beginTransaction();
         try {
+            check_order_transition($pdo, $orderId, $status);
+            $note = trim($note . ' [Updated by ' . current_role() . ' #' . (int)$_SESSION['user_id'] . ']');
             $pdo->prepare("UPDATE orders SET status=:s WHERE id=:id")->execute([':s'=>$status,':id'=>$orderId]);
             $pdo->prepare("INSERT INTO order_status_history (order_id, status, note) VALUES (:oid,:s,:n)")
                 ->execute([':oid'=>$orderId, ':s'=>$status, ':n'=>$note]);
@@ -104,7 +111,7 @@ $oq->execute($params);
 $orders = $oq->fetchAll();
 ?>
 
-<div class="admin-card"><h1>Orders</h1><p>Manage and update the status of customer orders. <a class="btn btn-dark btn-sm" href="orders.php?export=csv">⬇ Export CSV</a></p></div>
+<div class="admin-card"><h1>Orders</h1><p>Manage and update the status of customer orders. <?php if (is_admin()): ?><a class="btn btn-dark btn-sm" href="orders.php?export=csv">⬇ Export CSV</a><?php else: ?>Employees can advance fulfillment after any required payment verification.<?php endif; ?></p></div>
 
 <div class="admin-card">
     <form method="get" action="orders.php" class="filter-row">
@@ -152,12 +159,13 @@ $orders = $oq->fetchAll();
                 <td><?php echo date('M j, Y', strtotime($o['created_at'])); ?></td>
                 <td>
                     <form method="post" action="orders.php" class="inline-form">
+                        <input type="hidden" name="csrf" value="<?php echo e(csrf_token()); ?>">
                         <input type="hidden" name="form" value="status">
                         <input type="hidden" name="order_id" value="<?php echo (int)$o['id']; ?>">
                         <input type="hidden" name="fstatus" value="<?php echo e($fStatus); ?>">
                         <input type="hidden" name="fq" value="<?php echo e($fSearch); ?>">
                         <select name="status" onchange="this.form.submit()">
-                            <?php foreach (['pending','processing','delivered','cancelled'] as $s): ?>
+                            <?php foreach (order_status_options($o) as $s): ?>
                                 <option value="<?php echo $s; ?>" <?php echo $o['status']===$s?'selected':''; ?>><?php echo ucfirst($s); ?></option>
                             <?php endforeach; ?>
                         </select>

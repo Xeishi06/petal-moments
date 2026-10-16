@@ -3,6 +3,14 @@ require_once __DIR__ . '/config/functions.php';
 start_session();
 require_login();
 
+// Resolve successful retries before the now-empty cart is inspected.
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && verify_csrf($_POST['csrf'] ?? '')) {
+    $submittedToken = $_POST['order_token'] ?? '';
+    if (is_string($submittedToken) && isset($_SESSION['order_tokens'][$submittedToken])) {
+        redirect('thanks.php?order=' . (int)$_SESSION['order_tokens'][$submittedToken]);
+    }
+}
+
 if (!isset($_SESSION['cart'])) {
     $_SESSION['cart'] = [];
 }
@@ -121,7 +129,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $deliveryDate    = trim($_POST['delivery_date'] ?? '');
     $deliveryNotes   = trim($_POST['delivery_notes'] ?? '');
     $paymentMethod   = $_POST['payment_method'] ?? 'cash_on_delivery';
-    $paymentRef      = trim($_POST['payment_ref'] ?? '');
+    $paymentRef      = preg_replace('/\s+/', '', trim($_POST['payment_ref'] ?? ''));
     $senderNo        = mb_substr(trim($_POST['sender_no'] ?? ''), 0, 100);
 
     $payOptions = $fulfillment === 'pickup'
@@ -129,6 +137,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         : ['cash_on_delivery' => 'Cash on Delivery', 'gcash' => 'GCash'];
 
     $errors = [];
+    if (!is_string($orderToken) || !hash_equals($_SESSION['order_token'], $orderToken)) {
+        $errors[] = 'This checkout has expired. Please review your order and try again.';
+    }
     if (!isset($payOptions[$paymentMethod])) {
         $errors[] = $fulfillment === 'pickup'
             ? 'Please choose Pay on pickup or GCash.'
@@ -215,15 +226,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $pdo->beginTransaction();
         try {
             // Re-check stock inside the transaction to prevent overselling
-            $check = $pdo->prepare("SELECT id, price, sale_price, stock FROM products WHERE id = :id FOR UPDATE");
+            $locked = lock_checkout_stock($pdo, $cartItems);
             $lines = [];
             $total = 0.0;
             foreach ($cartItems as $item) {
-                $check->execute([':id' => $item['id']]);
-                $live = $check->fetch();
-                if (!$live || (int)$live['stock'] < (int)$item['quantity']) {
-                    throw new Exception('Sorry, "' . $item['name'] . '" only has ' . (int)($live['stock'] ?? 0) . ' left in stock.');
-                }
+                $live = $locked[$item['id']];
                 // Re-apply the live variant adjustment (admin may have changed it)
                 $vAdj = 0;
                 $vName = $item['variant'];
@@ -336,11 +343,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     <label>How do you want to get your flowers?</label>
                     <div class="fulfill-row" role="radiogroup" aria-label="Fulfillment method">
                         <label class="fulfill-pill">
-                            <input type="radio" name="fulfillment" value="delivery" checked>
+                            <input type="radio" name="fulfillment" value="delivery"<?php echo ($_POST['fulfillment'] ?? 'delivery') !== 'pickup' ? ' checked' : ''; ?>>
                             <span>🚚 Delivery</span>
                         </label>
                         <label class="fulfill-pill">
-                            <input type="radio" name="fulfillment" value="pickup">
+                            <input type="radio" name="fulfillment" value="pickup"<?php echo ($_POST['fulfillment'] ?? '') === 'pickup' ? ' checked' : ''; ?>>
                             <span>🏃 Pick up</span>
                         </label>
                     </div>
@@ -348,7 +355,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     <div id="addressWrap">
                         <label>Delivery Address *</label>
                         <input type="text" name="delivery_address" id="deliveryAddress" maxlength="255" list="addrList"
-                               value="<?php echo e($defaultAddr); ?>" required>
+                               value="<?php echo e($_POST['delivery_address'] ?? $defaultAddr); ?>" required>
                         <?php if (!empty($addrOptions)): ?>
                         <datalist id="addrList">
                             <?php foreach ($addrOptions as $ao): ?><option value="<?php echo e($ao); ?>"><?php endforeach; ?>
@@ -358,26 +365,27 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     <p class="pickup-note" id="pickupNote" hidden>Pick up at <strong><?php echo e($pickupAddr); ?></strong> — we'll message you when your flowers are ready.</p>
 
                     <label>Delivery / Pickup Date *</label>
-                    <input type="date" name="delivery_date" min="<?php echo date('Y-m-d', strtotime('+1 day')); ?>" required>
+                    <input type="date" name="delivery_date" value="<?php echo e($_POST['delivery_date'] ?? ''); ?>" min="<?php echo date('Y-m-d', strtotime('+1 day')); ?>" required>
                     <small class="field-hint">Order at least a day ahead — same-day orders aren't available.</small>
 
                     <label>Delivery Notes</label>
-                    <textarea name="delivery_notes" rows="3" maxlength="2000" placeholder="Recipient details, message on the card, etc."></textarea>
+                    <textarea name="delivery_notes" rows="3" maxlength="2000" placeholder="Recipient details, message on the card, etc."><?php echo e($_POST['delivery_notes'] ?? ''); ?></textarea>
 
                     <label>Payment Method</label>
                     <select name="payment_method" id="paymentMethod">
-                        <option value="cash_on_delivery" data-for="delivery">Cash on Delivery</option>
-                        <option value="pay_on_pickup" data-for="pickup">Pay on pickup</option>
-                        <option value="gcash" data-for="both"<?php echo ($defaultPay && $defaultPay['method'] === 'gcash') ? ' selected' : ''; ?>>GCash</option>
+                        <?php $selectedPay = $_POST['payment_method'] ?? ($defaultPay['method'] ?? 'cash_on_delivery'); ?>
+                        <option value="cash_on_delivery" data-for="delivery"<?php echo $selectedPay === 'cash_on_delivery' ? ' selected' : ''; ?>>Cash on Delivery</option>
+                        <option value="pay_on_pickup" data-for="pickup"<?php echo $selectedPay === 'pay_on_pickup' ? ' selected' : ''; ?>>Pay on pickup</option>
+                        <option value="gcash" data-for="both"<?php echo $selectedPay === 'gcash' ? ' selected' : ''; ?>>GCash</option>
                     </select>
 
                     <div class="gcash-box" id="gcashBox" hidden>
                         <strong>Pay with GCash</strong>
                         <p>Send exactly <strong id="gcashAmt">₱<?php echo number_format($cartTotal + quote_fee($cartTotal, false, $feeFlat, $feeFreeMin), 2); ?></strong> to<br><span class="gcash-num"><?php echo e($shopGcash); ?></span></p>
                         <label>GCash reference number *</label>
-                        <input type="text" name="payment_ref" id="paymentRef" inputmode="numeric" maxlength="20" placeholder="13-digit number from your receipt">
+                        <input type="text" name="payment_ref" id="paymentRef" inputmode="numeric" maxlength="20" value="<?php echo e($_POST['payment_ref'] ?? ''); ?>" placeholder="13-digit number from your receipt">
                         <label>Your GCash number (paying from) *</label>
-                        <input type="text" name="sender_no" id="senderNo" inputmode="numeric" maxlength="20" list="senderList" placeholder="e.g. 09171234567" value="<?php echo ($defaultPay && $defaultPay['method'] === 'gcash') ? e(preg_replace('/\s+/', '', $defaultPay['detail'])) : ''; ?>">
+                        <input type="text" name="sender_no" id="senderNo" inputmode="numeric" maxlength="20" list="senderList" placeholder="e.g. 09171234567" value="<?php echo e($_POST['sender_no'] ?? (($defaultPay && $defaultPay['method'] === 'gcash') ? preg_replace('/\s+/', '', $defaultPay['detail']) : '')); ?>">
                         <?php if (!empty($savedGcash)): ?>
                         <datalist id="senderList">
                             <?php foreach ($savedGcash as $sgc): ?><option value="<?php echo e(preg_replace('/\s+/', '', $sgc['detail'])); ?>"><?php echo e($sgc['label']); ?></option><?php endforeach; ?>
@@ -449,6 +457,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         });
                     });
                     paySel.addEventListener('change', syncGcash);
+                    addrWrap.style.display = isPickup() ? 'none' : '';
+                    note.hidden = !isPickup();
+                    addrInput.required = !isPickup();
                     syncPayments();
                     function showErrors(msgs) {
                         errBox.innerHTML = msgs.map(function (m) { return '<div>' + m + '</div>'; }).join('');

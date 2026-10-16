@@ -17,7 +17,7 @@ CREATE TABLE users (
   password      VARCHAR(255) NOT NULL,
   phone         VARCHAR(20)  NULL,
   address       VARCHAR(255) NULL,
-  role          ENUM('customer','admin') NOT NULL DEFAULT 'customer',
+  role          ENUM('customer','admin','employee') NOT NULL DEFAULT 'customer',
   is_active     TINYINT(1)   NOT NULL DEFAULT 1,
   created_at    TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP
 ) ENGINE=InnoDB;

@@ -318,6 +318,8 @@ button { cursor: pointer; }
 .badge-completed { background: #e2f0e2; color: #2c7a3f; }
 .badge-admin { background: #ead4cf; color: #8d4d58; }
 .badge-customer { background: #e2f0e2; color: #2c7a3f; }
+.badge-employee { background: #e3ecf7; color: #2c5ca8; }
+.role-form { display: inline-flex; gap: 8px; align-items: center; }
 
 .chip { display: inline-block; padding: 3px 10px; border-radius: 999px; font-size: 0.73rem; font-weight: 600; }
 .chip-in { background: #e2f0e2; color: #2c7a3f; }
@@ -514,4 +516,84 @@ button { cursor: pointer; }
   .admin-nav-label { display: none; }
   .admin-topbar { padding: 14px 20px; }
   .admin-main { padding: 22px 20px; }
+}
+
+/* ---------- Logout confirmation modal ---------- */
+
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 200;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  background: rgba(48, 38, 37, 0.5);
+  overflow-y: auto;
+}
+.modal-overlay.open { display: flex; }
+
+.modal-card {
+  position: relative;
+  width: min(440px, 100%);
+  max-height: 90vh;
+  overflow-y: auto;
+  background: var(--cream);
+  border-radius: 24px;
+  padding: 28px;
+  box-shadow: var(--shadow);
+  animation: admin-modal-pop 0.2s ease;
+}
+@keyframes admin-modal-pop {
+  from { transform: translateY(12px); opacity: 0; }
+  to   { transform: translateY(0); opacity: 1; }
+}
+
+.modal-close {
+  position: absolute;
+  top: 14px;
+  right: 14px;
+  width: 32px;
+  height: 32px;
+  border: 0;
+  border-radius: 50%;
+  background: transparent;
+  color: var(--muted);
+  font-size: 0.95rem;
+  cursor: pointer;
+  transition: 0.2s ease;
+}
+.modal-close:hover { background: var(--paper); color: var(--ink); }
+
+.auth-modal-card { text-align: center; }
+.auth-modal-body { padding: 6px 10px 0; }
+.auth-modal-heart {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 64px;
+  height: 64px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, var(--rose), var(--rose-dark));
+  color: #fff;
+  font-size: 1.7rem;
+  margin-bottom: 14px;
+  box-shadow: 0 10px 26px rgba(141, 77, 88, 0.35);
+}
+.logout-eyebrow {
+  display: block;
+  letter-spacing: 0.18em;
+  font-size: 0.68rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  color: var(--rose-dark);
+}
+.auth-modal-body h2 { font-size: 1.5rem; margin: 6px 0 10px; }
+.auth-modal-body > p { color: var(--muted); font-size: 0.9rem; line-height: 1.6; }
+.auth-modal-actions { display: flex; gap: 10px; margin-top: 20px; }
+.auth-modal-actions .btn { flex: 1; }
+body.modal-open { overflow: hidden; }
+
+@media (max-width: 480px) {
+  .auth-modal-actions { flex-direction: column; }
 }

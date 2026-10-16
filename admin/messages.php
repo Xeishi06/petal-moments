@@ -1,22 +1,27 @@
 <?php
 require_once __DIR__ . '/../config/functions.php';
 start_session();
-require_admin();
+require_staff();
 
 $pdo = db();
 
-if (isset($_GET['status']) && isset($_GET['id'])) {
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && !verify_csrf($_POST['csrf'] ?? '')) {
+    http_response_code(403);
+    exit('Session expired. Refresh and try again.');
+}
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['status'], $_POST['id'])) {
     $allowed = ['new', 'read', 'replied'];
-    if (in_array($_GET['status'], $allowed, true)) {
+    if (in_array($_POST['status'], $allowed, true)) {
         $pdo->prepare("UPDATE contact_messages SET status=:s WHERE id=:id")
-            ->execute([':s' => $_GET['status'], ':id' => (int)$_GET['id']]);
-        flash('success', 'Message marked as ' . $_GET['status'] . '.');
+            ->execute([':s' => $_POST['status'], ':id' => (int)$_POST['id']]);
+        flash('success', 'Message marked as ' . $_POST['status'] . '.');
     }
     redirect('messages.php');
 }
 
-if (isset($_GET['delete'])) {
-    $pdo->prepare("DELETE FROM contact_messages WHERE id=:id")->execute([':id' => (int)$_GET['delete']]);
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['delete'])) {
+    require_admin();
+    $pdo->prepare("DELETE FROM contact_messages WHERE id=:id")->execute([':id' => (int)$_POST['delete']]);
     flash('success', 'Message deleted.');
     redirect('messages.php');
 }
@@ -52,15 +57,19 @@ $newCount = $pdo->query("SELECT COUNT(*) FROM contact_messages WHERE status='new
                 </td>
                 <td>
                     <?php if (!empty($m['subject'])): ?><strong><?php echo e($m['subject']); ?></strong><?php endif; ?>
-                    <span title="<?php echo e($m['message']); ?>"><?php echo e(mb_strimwidth($m['message'], 0, 80, '…')); ?></span>
+                    <details><summary><?php echo e(mb_strimwidth($m['message'], 0, 80, '…')); ?></summary><p><?php echo nl2br(e($m['message'])); ?></p></details>
                 </td>
                 <td><span class="badge badge-<?php echo $m['status'] === 'new' ? 'pending' : ($m['status'] === 'replied' ? 'delivered' : 'processing'); ?>"><?php echo ucfirst(e($m['status'])); ?></span></td>
                 <td><?php echo date('M j, Y', strtotime($m['created_at'])); ?></td>
                 <td>
                     <div class="cell-actions">
-                        <?php if ($m['status'] === 'new'): ?><a class="btn btn-ghost btn-sm" href="messages.php?status=read&id=<?php echo (int)$m['id']; ?>">Mark read</a><?php endif; ?>
-                        <?php if ($m['status'] !== 'replied'): ?><a class="btn btn-ghost btn-sm" href="messages.php?status=replied&id=<?php echo (int)$m['id']; ?>">Replied</a><?php endif; ?>
-                        <a class="btn btn-danger btn-sm" href="messages.php?delete=<?php echo (int)$m['id']; ?>" onclick="return confirm('Delete this message?');">Delete</a>
+                        <form method="post" action="messages.php" class="cell-actions">
+                            <input type="hidden" name="csrf" value="<?php echo e(csrf_token()); ?>">
+                            <input type="hidden" name="id" value="<?php echo (int)$m['id']; ?>">
+                            <?php if ($m['status'] === 'new'): ?><button type="submit" name="status" value="read" class="btn btn-ghost btn-sm">Mark read</button><?php endif; ?>
+                            <?php if ($m['status'] !== 'replied'): ?><button type="submit" name="status" value="replied" class="btn btn-ghost btn-sm">Mark replied</button><?php endif; ?>
+                            <?php if (is_admin()): ?><button type="submit" name="delete" value="<?php echo (int)$m['id']; ?>" class="btn btn-danger btn-sm" onclick="return confirm('Delete this message?');">Delete</button><?php endif; ?>
+                        </form>
                     </div>
                 </td>
             </tr>

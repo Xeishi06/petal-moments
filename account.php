@@ -16,8 +16,29 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['form'] ?? '') === 'profile
             ->execute([':fn' => $firstName, ':ln' => $lastName, ':ph' => $phone, ':ad' => $address, ':id' => $_SESSION['user_id']]);
         $_SESSION['name'] = $firstName . ' ' . $lastName;
         flash('success', 'Profile updated.');
-        redirect('account.php');
     }
+    redirect('account.php?tab=account');
+}
+
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['form'] ?? '') === 'profile_field') {
+    $field = $_POST['field'] ?? '';
+    $value = mb_substr(trim($_POST['value'] ?? ''), 0, 255);
+    $allowed = ['first_name', 'last_name', 'phone', 'address'];
+    if (!in_array($field, $allowed, true)) {
+        flash('error', 'Invalid field.');
+    } elseif (in_array($field, ['first_name', 'last_name'], true) && $value === '') {
+        flash('error', 'Name cannot be empty.');
+    } else {
+        db()->prepare("UPDATE users SET $field = :v WHERE id = :id")->execute([':v' => $value, ':id' => $_SESSION['user_id']]);
+        if (in_array($field, ['first_name', 'last_name'], true)) {
+            $nr = db()->prepare("SELECT first_name, last_name FROM users WHERE id = :id");
+            $nr->execute([':id' => $_SESSION['user_id']]);
+            $nn = $nr->fetch();
+            $_SESSION['name'] = $nn['first_name'] . ' ' . $nn['last_name'];
+        }
+        flash('success', 'Saved. ✔');
+    }
+    redirect('account.php?tab=account');
 }
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['form'] ?? '') === 'password') {

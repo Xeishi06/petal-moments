@@ -1,14 +1,18 @@
 <?php
 require_once __DIR__ . '/../config/functions.php';
 start_session();
-require_admin();
+require_staff();
 
 $pdo = db();
 
-if (isset($_GET['status']) && isset($_GET['id'])) {
-    $pdo->prepare("UPDATE event_inquiries SET status=:s WHERE id=:id")
-        ->execute([':s'=>$_GET['status'], ':id'=>(int)$_GET['id']]);
-    flash('success', 'Inquiry status updated.');
+if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    if (!verify_csrf($_POST['csrf'] ?? '')) { http_response_code(403); exit('Session expired. Refresh and try again.'); }
+    $status = $_POST['status'] ?? '';
+    if (in_array($status, ['pending', 'contacted', 'completed'], true)) {
+        $pdo->prepare("UPDATE event_inquiries SET status=:s WHERE id=:id")
+            ->execute([':s'=>$status, ':id'=>(int)($_POST['id'] ?? 0)]);
+        flash('success', 'Inquiry status updated.');
+    } else { flash('error', 'Invalid inquiry status.'); }
     redirect('inquiries.php');
 }
 
@@ -17,7 +21,7 @@ $adminTitle = 'Event Inquiries | Petal Moments Admin';
 include __DIR__ . '/includes/admin_header.php';
 
 $inquiries = $pdo->query("
-    SELECT i.*, u.first_name, u.last_name, u.email, u.phone
+    SELECT i.*, u.first_name, u.last_name, COALESCE(NULLIF(i.email, ''), u.email) AS email, COALESCE(NULLIF(i.phone, ''), u.phone) AS phone
     FROM event_inquiries i
     LEFT JOIN users u ON u.id = i.user_id
     ORDER BY i.created_at DESC
@@ -61,8 +65,14 @@ $inquiries = $pdo->query("
                 <td>
                     <div class="cell-actions">
                         <button type="button" class="btn btn-ghost btn-sm inq-toggle" data-inq="<?php echo (int)$i['id']; ?>" aria-expanded="false">View</button>
-                        <?php if ($i['status'] !== 'contacted'): ?><a class="btn btn-ghost btn-sm" href="inquiries.php?status=contacted&id=<?php echo (int)$i['id']; ?>">Contacted</a><?php endif; ?>
-                        <?php if ($i['status'] !== 'completed'): ?><a class="btn btn-ghost btn-sm" href="inquiries.php?status=completed&id=<?php echo (int)$i['id']; ?>">Completed</a><?php endif; ?>
+                        <form method="post" action="inquiries.php" class="inline-form">
+                            <input type="hidden" name="csrf" value="<?php echo e(csrf_token()); ?>">
+                            <input type="hidden" name="id" value="<?php echo (int)$i['id']; ?>">
+                            <select name="status" aria-label="Inquiry status">
+                                <?php foreach (['pending', 'contacted', 'completed'] as $status): ?><option value="<?php echo $status; ?>"<?php echo $i['status'] === $status ? ' selected' : ''; ?>><?php echo ucfirst($status); ?></option><?php endforeach; ?>
+                            </select>
+                            <button type="submit" class="btn btn-ghost btn-sm">Update</button>
+                        </form>
                     </div>
                 </td>
             </tr>

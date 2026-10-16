@@ -36,6 +36,7 @@ $toReview->execute([':id' => $orderId, ':u' => $_SESSION['user_id']]);
 $toReview = array_map(function ($t) {
     return ['id' => (int)$t['product_id'], 'name' => $t['name'] ?? 'Arrangement', 'image' => $t['image'] ?? ''];
 }, $toReview->fetchAll());
+if ($order['status'] !== 'delivered') { $toReview = []; }
 ?>
 <?php $pageTitle = 'Order Confirmed | Petal Moments'; include __DIR__ . '/includes/header.php'; ?>
 

@@ -23,8 +23,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['form'] ?? '') === 'user_ac
         $pdo->prepare("UPDATE users SET is_active = 1 - is_active WHERE id = :id")->execute([':id' => $id]);
         flash('success', 'User status updated.');
     } elseif ($do === 'role') {
-        $pdo->prepare("UPDATE users SET role = IF(role = 'admin', 'customer', 'admin') WHERE id = :id")->execute([':id' => $id]);
-        flash('success', 'User role updated.');
+        $role = $_POST['role'] ?? '';
+        if (!in_array($role, ['customer', 'employee', 'admin'], true)) {
+            flash('error', 'Choose a valid account role.');
+        } else {
+            $pdo->prepare('UPDATE users SET role = :role WHERE id = :id')->execute([':role' => $role, ':id' => $id]);
+            flash('success', 'Account role updated to ' . $role . '.');
+        }
     } elseif ($do === 'delete') {
         $pdo->prepare("DELETE FROM users WHERE id = :id")->execute([':id' => $id]);
         flash('success', 'User deleted.');
@@ -43,7 +48,7 @@ $users = $pdo->query("
 ")->fetchAll();
 ?>
 
-<div class="admin-card"><h1>Users</h1><p>Manage customer and admin accounts.</p></div>
+<div class="admin-card"><h1>Users</h1><p>Manage customer, employee, and admin accounts.</p><p>Employees can handle order fulfillment, event inquiries, and customer messages. Only admins manage accounts, products, settings, payment verification, cancellations, and exports.</p></div>
 
 <div class="admin-card">
     <div class="table-scroll">
@@ -79,12 +84,17 @@ $users = $pdo->query("
                             <input type="hidden" name="do" value="toggle">
                             <button type="submit" class="btn btn-ghost btn-sm"><?php echo $u['is_active'] ? 'Disable' : 'Enable'; ?></button>
                         </form>
-                        <form method="post" action="users.php" style="display:inline;" onsubmit="return confirm('Change this user\u2019s role?');">
+                        <form method="post" action="users.php" class="inline-form role-form">
                             <input type="hidden" name="form" value="user_action">
                             <input type="hidden" name="csrf" value="<?php echo e(csrf_token()); ?>">
                             <input type="hidden" name="user_id" value="<?php echo (int)$u['id']; ?>">
                             <input type="hidden" name="do" value="role">
-                            <button type="submit" class="link-soft" style="border:0;background:none;cursor:pointer;"><?php echo $u['role'] === 'admin' ? 'Make customer' : 'Make admin'; ?></button>
+                            <select name="role" aria-label="Role for <?php echo e($u['email']); ?>">
+                                <?php foreach (['customer', 'employee', 'admin'] as $role): ?>
+                                    <option value="<?php echo $role; ?>"<?php echo $u['role'] === $role ? ' selected' : ''; ?>><?php echo ucfirst($role); ?></option>
+                                <?php endforeach; ?>
+                            </select>
+                            <button type="submit" class="btn btn-primary btn-sm">Save Role</button>
                         </form>
                         <form method="post" action="users.php" style="display:inline;" onsubmit="return confirm('Delete this user and their orders?');">
                             <input type="hidden" name="form" value="user_action">

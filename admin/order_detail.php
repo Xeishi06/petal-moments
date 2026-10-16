@@ -1,7 +1,11 @@
 <?php
 require_once __DIR__ . '/../config/functions.php';
 start_session();
-require_admin();
+require_staff();
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && !verify_csrf($_POST['csrf'] ?? '')) {
+    http_response_code(403);
+    exit('Session expired. Refresh the order and try again.');
+}
 
 $pdo = db();
 $orderId = (int)($_GET['id'] ?? 0);
@@ -33,6 +37,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['form'] ?? '') === 'status'
     if (in_array($status, ['pending', 'processing', 'delivered', 'cancelled'], true)) {
         $pdo->beginTransaction();
         try {
+            check_order_transition($pdo, $orderId, $status);
+            $note = trim($note . ' [Updated by ' . current_role() . ' #' . (int)$_SESSION['user_id'] . ']');
             $pdo->prepare("UPDATE orders SET status = :s WHERE id = :id")->execute([':s' => $status, ':id' => $orderId]);
             $pdo->prepare("INSERT INTO order_status_history (order_id, status, note) VALUES (:oid, :s, :n)")
                 ->execute([':oid' => $orderId, ':s' => $status, ':n' => $note !== '' ? $note : null]);
@@ -47,6 +53,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['form'] ?? '') === 'status'
 }
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['form'] ?? '') === 'verify') {
+    require_admin();
     $pdo->prepare("UPDATE orders SET pay_verified = 1 - pay_verified WHERE id = :id")->execute([':id' => $orderId]);
     $pdo->prepare("INSERT INTO order_status_history (order_id, status, note) VALUES (:oid, :s, 'Payment verification toggled by admin')")
         ->execute([':oid' => $orderId, ':s' => $order['status']]);
@@ -120,8 +127,8 @@ include __DIR__ . '/includes/admin_header.php';
             <?php if (!empty($dupOrders)): ?>
                 <div class="wide"><span>⚠ Duplicate ref</span><p style="color:#b34f4f;font-weight:600;">Same reference used on order(s): <?php foreach ($dupOrders as $d): ?><a href="order_detail.php?id=<?php echo (int)$d; ?>">#<?php echo (int)$d; ?></a> <?php endforeach; ?> — verify carefully.</p></div>
             <?php endif; ?>
-            <?php if (!empty($order['receipt'])): ?>
-                <div class="wide"><span>Receipt</span><p><a href="../<?php echo e($order['receipt']); ?>" target="_blank" rel="noopener"><img src="../<?php echo e($order['receipt']); ?>" alt="GCash receipt" style="max-width:220px;border-radius:10px;border:1px solid var(--border);"></a><br><small>Click to enlarge</small></p></div>
+            <?php if (is_admin() && !empty($order['receipt'])): ?>
+                <div class="wide"><span>Receipt</span><p><a href="../receipt.php?order=<?php echo (int)$order['id']; ?>" target="_blank" rel="noopener"><img src="../receipt.php?order=<?php echo (int)$order['id']; ?>" alt="GCash receipt" style="max-width:220px;border-radius:10px;border:1px solid var(--border);"></a><br><small>Click to enlarge</small></p></div>
             <?php endif; ?>
             <div class="wide">
                 <span>Payment verification</span>
@@ -132,9 +139,12 @@ include __DIR__ . '/includes/admin_header.php';
                         <span class="chip chip-out">Unverified</span>
                     <?php endif; ?>
                 </p>
+                <?php if (is_admin()): ?>
                 <form method="post" action="order_detail.php?id=<?php echo (int)$order['id']; ?>" style="margin-top:8px;">
+                    <input type="hidden" name="csrf" value="<?php echo e(csrf_token()); ?>">
                     <button type="submit" name="form" value="verify" class="btn <?php echo !empty($order['pay_verified']) ? 'btn-light' : 'btn-primary'; ?> btn-sm"><?php echo !empty($order['pay_verified']) ? 'Mark Unverified' : '✔ Mark Payment Verified'; ?></button>
                 </form>
+                <?php else: ?><small>Payment verification is handled by an admin.</small><?php endif; ?>
             </div>
             <?php if (!empty($order['sender_no'])): ?><div><span><?php echo $order['payment_method'] === 'card' ? 'Card used' : 'Paid from'; ?></span><strong><?php echo e($order['sender_no']); ?></strong></div><?php endif; ?>
             <div class="wide"><span>Notes</span><p><?php echo !empty($order['delivery_notes']) ? nl2br(e($order['delivery_notes'])) : '<span class="link-soft">—</span>'; ?></p></div>
@@ -142,12 +152,13 @@ include __DIR__ . '/includes/admin_header.php';
 
         <h2 style="margin-top:20px;">Update Status</h2>
         <form method="post" action="order_detail.php?id=<?php echo (int)$order['id']; ?>" class="admin-form">
+            <input type="hidden" name="csrf" value="<?php echo e(csrf_token()); ?>">
             <input type="hidden" name="form" value="status">
             <div class="form-row">
                 <div>
                     <label>Status</label>
                     <select name="status">
-                        <?php foreach (['pending', 'processing', 'delivered', 'cancelled'] as $s): ?>
+                        <?php foreach (order_status_options($order) as $s): ?>
                             <option value="<?php echo $s; ?>" <?php echo $order['status'] === $s ? 'selected' : ''; ?>><?php echo ucfirst($s); ?></option>
                         <?php endforeach; ?>
                     </select>

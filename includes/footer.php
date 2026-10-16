@@ -33,17 +33,17 @@
 
         <div>
             <h4>Contact</h4>
-            <p>Address: 688 B. Manuel St., Montalban, Rizal</p>
+            <p><a href="https://www.google.com/maps/search/?api=1&amp;query=688+B.+Manuel+St.+Montalban+Rizal" target="_blank" rel="noopener">688 B. Manuel St., Montalban, Rizal — Get directions</a></p>
             <p>Facebook: Petal Moments Flowers & Events</p>
             <p>Contact Person: Ashlei Burdeos</p>
-            <p>Gmail: petalmoments@gmail.com</p>
+            <p><a href="mailto:petalmoments@gmail.com">petalmoments@gmail.com</a></p>
             <p>Philippines</p>
         </div>
 
     </div>
 
     <div class="container footer-bottom">
-        <p>© 2025 Petal Moments Flowers & Events. All rights reserved.</p>
+        <p>© <?php echo date('Y'); ?> Petal Moments Flowers & Events. All rights reserved.</p>
         <div>
             <a href="#">Privacy</a>
             <a href="#">Terms</a>
@@ -85,6 +85,6 @@
     </div>
 </div>
 
-<script src="script.js"></script>
+<script src="script.js?v=<?php echo filemtime(__DIR__ . '/../script.js'); ?>"></script>
 </body>
 </html>

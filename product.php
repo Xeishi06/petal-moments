@@ -37,14 +37,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['form'] ?? '') === 'review'
     $comment = mb_substr(trim($_POST['comment'] ?? ''), 0, 1000);
     $bought = db()->prepare("
         SELECT 1 FROM order_items oi
-        JOIN orders o ON o.id = oi.order_id AND o.status != 'cancelled'
+        JOIN orders o ON o.id = oi.order_id AND o.status = 'delivered'
         WHERE o.user_id = :u AND oi.product_id = :p LIMIT 1
     ");
     $bought->execute([':u' => $_SESSION['user_id'], ':p' => $product['id']]);
     if ($rating < 1 || $rating > 5) {
         flash('error', 'Please choose a star rating from 1 to 5.');
     } elseif (!$bought->fetch()) {
-        flash('error', 'Only customers who bought this flower can review it.');
+        flash('error', 'You can review this flower after your order is delivered.');
     } else {
         db()->prepare("
             INSERT INTO reviews (product_id, user_id, rating, comment)
@@ -72,7 +72,7 @@ $myReview = null;
 if (is_logged_in()) {
     $bought2 = db()->prepare("
         SELECT 1 FROM order_items oi
-        JOIN orders o ON o.id = oi.order_id AND o.status != 'cancelled'
+        JOIN orders o ON o.id = oi.order_id AND o.status = 'delivered'
         WHERE o.user_id = :u AND oi.product_id = :p LIMIT 1
     ");
     $bought2->execute([':u' => $_SESSION['user_id'], ':p' => $product['id']]);
@@ -101,7 +101,7 @@ $giftStmt->execute([':id' => $product['id'], ':cid' => $product['category_id'] ?
 
 // Related flowers: same occasion, excluding this product and add-ons
 $relSql = "
-    SELECT p.id, p.name, p.price, p.image, c.name AS category_name
+    SELECT p.id, p.name, p.price, p.sale_price, p.image, c.name AS category_name
     FROM products p
     LEFT JOIN categories c ON c.id = p.category_id
     WHERE p.is_active = 1 AND p.is_addon = 0 AND p.id != :id AND ";
@@ -202,9 +202,9 @@ $detailSold = $detailSold[(int)$product['id']] ?? 0;
                     <?php if ((int)$revStats['n'] > 0): ?><span class="sold-inline"> • <?php echo stars_html($revStats['avg']); ?> <?php echo number_format((float)$revStats['avg'], 1); ?> (<?php echo (int)$revStats['n']; ?>)</span><?php endif; ?>
                 </p>
 
-                <?php if (is_logged_in()): ?>
                 <?php if ((int)$product['stock'] > 0): ?>
                 <form class="add-to-cart-form" method="post" action="cart.php?action=add" id="detailForm">
+                    <input type="hidden" name="csrf" value="<?php echo e(csrf_token()); ?>">
                     <input type="hidden" name="product_id" value="<?php echo (int)$product['id']; ?>">
                     <?php if ($showVariants): ?>
                     <label>Make it yours</label>
@@ -257,14 +257,12 @@ $detailSold = $detailSold[(int)$product['id']] ?? 0;
                 })();
                 </script>
                 <?php endif; ?>
+                <?php if (is_logged_in()): ?>
                 <button type="button" class="btn btn-light btn-fav<?php echo $isSaved ? ' active' : ''; ?>" data-wishlist="<?php echo (int)$product['id']; ?>" aria-pressed="<?php echo $isSaved ? 'true' : 'false'; ?>">
                     ♥ <?php echo $isSaved ? 'Saved to Favorites' : 'Save to Favorites'; ?>
                 </button>
                 <?php else: ?>
-                <p class="stock-status">
-                    <span class="out">Please log in to order.</span>
-                </p>
-                <a class="btn btn-primary" href="login.php">Log in to Order</a>
+                <p class="stock-status">Choose your flowers now. Log in when you're ready to check out.</p>
                 <button type="button" class="btn btn-light btn-fav" data-wishlist="<?php echo (int)$product['id']; ?>" aria-pressed="false">
                     ♥ Save to Favorites
                 </button>
@@ -284,15 +282,12 @@ $detailSold = $detailSold[(int)$product['id']] ?? 0;
                         <strong><?php echo e($g['name']); ?></strong>
                         <span><?php if (on_sale($g)): ?><s class="was">₱<?php echo number_format((float)$g['price'], 2); ?></s> <?php endif; ?>₱<?php echo number_format(eff_price($g), 2); ?></span>
                     </div>
-                    <?php if (is_logged_in()): ?>
                     <form method="post" action="cart.php?action=add">
+                        <input type="hidden" name="csrf" value="<?php echo e(csrf_token()); ?>">
                         <input type="hidden" name="product_id" value="<?php echo (int)$g['id']; ?>">
                         <input type="hidden" name="quantity" value="1">
                         <button type="submit" class="btn btn-dark btn-small">Add +</button>
                     </form>
-                    <?php else: ?>
-                    <a class="btn btn-dark btn-small" href="product.php?id=<?php echo (int)$g['id']; ?>">View</a>
-                    <?php endif; ?>
                 </div>
                 <?php endforeach; ?>
             </aside>

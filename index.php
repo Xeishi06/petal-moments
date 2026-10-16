@@ -28,7 +28,7 @@ $ratingInfo = product_ratings(array_column($featured, 'id'));
                     <span class="eyebrow">FLOWERS FOR EVERY MOMENT</span>
 
                     <h1>
-                        We create your dream event,
+                        We make your dream event
                         <em>into reality.</em>
                     </h1>
 

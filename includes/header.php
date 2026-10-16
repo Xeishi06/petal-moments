@@ -4,12 +4,13 @@ start_session();
 
 $pageTitle = $pageTitle ?? 'Petal Moments | Flowers & Events';
 $active    = $active ?? '';
+$theme = is_logged_in() && (($_SESSION['theme'] ?? 'light') === 'dark') ? 'dark' : 'light';
 ?>
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" data-theme="<?php echo $theme; ?>">
 <head>
     <meta charset="UTF-8" />
-    <meta name="color-scheme" content="light dark" />
+    <meta name="color-scheme" content="<?php echo $theme; ?>" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="description" content="Petal Moments Flowers & Events - Flowers made for life's sweetest moments." />
     <title><?php echo e($pageTitle); ?></title>
@@ -18,12 +19,12 @@ $active    = $active ?? '';
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Playfair+Display:wght@500;600;700&display=swap" rel="stylesheet">
 
-    <link rel="stylesheet" href="styles.css" />
+    <link rel="stylesheet" href="styles.css?v=<?php echo filemtime(__DIR__ . '/../styles.css'); ?>" />
 </head>
-<body id="top" class="<?php echo (is_logged_in() && (($_SESSION['theme'] ?? 'light') === 'dark')) ? 'dark' : ''; ?>" data-auth="<?php echo is_logged_in() ? '1' : '0'; ?>" data-csrf="<?php echo e(csrf_token()); ?>">
+<body id="top" class="<?php echo $theme === 'dark' ? 'dark' : ''; ?>" data-auth="<?php echo is_logged_in() ? '1' : '0'; ?>" data-csrf="<?php echo e(csrf_token()); ?>">
 
 <div class="announcement">
-    <p><?php echo e(setting('announcement', 'Fresh flowers, thoughtfully arranged.')); ?></p>
+    <p><?php echo e(str_replace('Same-day orders subject to availability.', 'Order at least a day ahead for delivery or pickup.', setting('announcement', 'Fresh flowers, thoughtfully arranged. Order at least a day ahead.'))); ?></p>
 </div>
 
 <header class="site-header">
@@ -59,8 +60,8 @@ $active    = $active ?? '';
             <?php if (is_logged_in()): ?>
                 <a class="nav-mobile-only" href="cart.php">🛒 Cart</a>
                 <a class="nav-mobile-only" href="wishlist.php">♡ Favorites</a>
-                <?php if (is_admin()): ?>
-                    <a class="nav-mobile-only nav-cta" href="admin/index.php">Admin Panel</a>
+                <?php if (is_staff()): ?>
+                    <a class="nav-mobile-only nav-cta" href="<?php echo e(staff_home()); ?>"><?php echo is_admin() ? 'Admin Panel' : 'Employee Panel'; ?></a>
                 <?php endif; ?>
                 <a class="nav-mobile-only" href="logout.php">Logout</a>
             <?php else: ?>
@@ -75,8 +76,8 @@ $active    = $active ?? '';
             <?php if (is_logged_in()): ?>
                 <a class="icon-btn" href="wishlist.php" aria-label="My favorites">♡</a>
                 <a class="icon-btn" href="cart.php" aria-label="Cart">🛒</a>
-                <?php if (is_admin()): ?>
-                    <a class="btn btn-primary btn-small" href="admin/index.php">Admin Panel</a>
+                <?php if (is_staff()): ?>
+                    <a class="btn btn-primary btn-small" href="<?php echo e(staff_home()); ?>"><?php echo is_admin() ? 'Admin Panel' : 'Employee Panel'; ?></a>
                 <?php endif; ?>
                 <a class="btn btn-dark btn-small" href="logout.php">Logout</a>
             <?php else: ?>

@@ -34,12 +34,12 @@ if ($rating < 1 || $rating > 5) {
 
 $bought = db()->prepare("
     SELECT 1 FROM order_items oi
-    JOIN orders o ON o.id = oi.order_id AND o.status != 'cancelled'
+    JOIN orders o ON o.id = oi.order_id AND o.status = 'delivered'
     WHERE o.user_id = :u AND oi.product_id = :p LIMIT 1
 ");
 $bought->execute([':u' => $_SESSION['user_id'], ':p' => $productId]);
 if (!$bought->fetch()) {
-    echo json_encode(['ok' => false, 'error' => 'Only customers who bought this flower can review it.']);
+    echo json_encode(['ok' => false, 'error' => 'You can review this flower after your order is delivered.']);
     exit;
 }
 

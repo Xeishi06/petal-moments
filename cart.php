@@ -2,7 +2,12 @@
 require_once __DIR__ . '/config/functions.php';
 start_session();
 
-$action = $_GET['action'] ?? $_POST['action'] ?? '';
+$action = $_POST['action'] ?? $_GET['action'] ?? '';
+if (isset($_POST['remove'])) { $action = 'remove'; }
+if ($action !== '' && ($_SERVER['REQUEST_METHOD'] !== 'POST' || !verify_csrf($_POST['csrf'] ?? ''))) {
+    http_response_code(403);
+    exit('Invalid cart request. Refresh the cart and try again.');
+}
 
 $variants = cart_variants();
 
@@ -20,7 +25,7 @@ switch ($action) {
                 flash('error', 'Product not found.');
                 redirect('shop.php');
             }
-            if ($variants[$variantId]['needs_message'] && $dedication === '') {
+            if (!empty($variants[$variantId]['needs_message']) && $dedication === '') {
                 flash('error', 'Please write your personalized message for the card.');
                 redirect('product.php?id=' . $productId);
             }
@@ -66,7 +71,7 @@ switch ($action) {
 
     case 'remove':
         $lines = cart_lines('cart');
-        unset($lines[$_GET['id'] ?? '']);
+        unset($lines[$_POST['remove'] ?? '']);
         cart_save_lines('cart', $lines);
         redirect('cart.php');
         break;
@@ -125,6 +130,7 @@ if (!empty($lines)) {
             <p class="empty-state">Your cart is empty. <a href="shop.php">Browse our flowers →</a></p>
         <?php else: ?>
             <form method="post" action="cart.php?action=update">
+                <input type="hidden" name="csrf" value="<?php echo e(csrf_token()); ?>">
                 <table class="cart-table">
                     <thead>
                         <tr>
@@ -151,7 +157,7 @@ if (!empty($lines)) {
                                        value="<?php echo (int)$item['quantity']; ?>" min="0" max="<?php echo max(1,(int)$item['stock']); ?>">
                             </td>
                             <td>₱<?php echo number_format((float)$item['subtotal'], 2); ?></td>
-                            <td><a class="remove-link" href="cart.php?action=remove&id=<?php echo e($item['row']); ?>">Remove</a></td>
+                            <td><button type="submit" class="btn btn-light btn-small" name="remove" value="<?php echo e($item['row']); ?>" formnovalidate onclick="return confirm('Remove this arrangement from your cart?');">Remove</button></td>
                         </tr>
                         <?php endforeach; ?>
                     </tbody>
@@ -168,9 +174,9 @@ if (!empty($lines)) {
                     <?php if (is_logged_in()): ?>
                         <a class="btn btn-primary" href="checkout.php">Proceed to Checkout →</a>
                     <?php else: ?>
-                        <a class="btn btn-primary" href="login.php">Log in to Checkout →</a>
+                        <a class="btn btn-primary" href="login.php?next=checkout.php">Log in to Checkout →</a>
                     <?php endif; ?>
-                    <a class="btn btn-light" href="cart.php?action=clear">Clear Cart</a>
+                    <button type="submit" class="btn btn-light" name="action" value="clear" formnovalidate onclick="return confirm('Remove every item from your cart?');">Clear Cart</button>
                 </div>
             </form>
         <?php endif; ?>

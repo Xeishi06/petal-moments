@@ -1,4 +1,6 @@
 <?php
+require_once __DIR__ . '/../config/functions.php';
+require_admin();
 $active = 'dashboard';
 $adminTitle = 'Dashboard | Petal Moments Admin';
 include __DIR__ . '/includes/admin_header.php';

@@ -1,7 +1,8 @@
 <?php
 require_once __DIR__ . '/../../config/functions.php';
 start_session();
-require_admin();
+require_staff();
+$panelLabel = is_admin() ? 'Admin Panel' : 'Employee Panel';
 
 $adminTitle = $adminTitle ?? 'Admin | Petal Moments';
 
@@ -40,7 +41,7 @@ try {
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Playfair+Display:wght@500;600;700&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="admin_style.css" />
+    <link rel="stylesheet" href="admin_style.css?v=<?php echo filemtime(__DIR__ . '/../admin_style.css'); ?>" />
 </head>
 <body class="admin-body">
 
@@ -50,16 +51,17 @@ try {
             <img src="logo.png" alt="Petal Moments logo" class="brand-logo" />
             <div>
                 <strong>Petal Moments</strong>
-                <small>Admin Panel</small>
+                <small><?php echo e($panelLabel); ?></small>
             </div>
         </div>
 
         <div class="admin-nav-label">Menu</div>
         <nav class="admin-nav">
-            <a href="index.php" class="<?php echo ($active ?? '') === 'dashboard' ? 'active' : ''; ?>">
+            <a href="<?php echo is_admin() ? 'index.php' : 'employee.php'; ?>" class="<?php echo ($active ?? '') === 'dashboard' ? 'active' : ''; ?>">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 10.5 12 3l9 7.5"/><path d="M5 9.5V21h14V9.5"/></svg>
                 Dashboard
             </a>
+            <?php if (is_admin()): ?>
             <a href="products.php" class="<?php echo ($active ?? '') === 'products' ? 'active' : ''; ?>">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 8 12 3 3 8v8l9 5 9-5V8Z"/><path d="M3 8l9 5 9-5"/><path d="M12 13v8"/></svg>
                 Products
@@ -81,15 +83,18 @@ try {
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2l2.9 6.3 6.9.8-5.1 4.7 1.4 6.8L12 17l-6.1 3.6 1.4-6.8L2.2 9.1l6.9-.8L12 2Z"/></svg>
                 Reviews
             </a>
+            <?php endif; ?>
             <a href="orders.php" class="<?php echo ($active ?? '') === 'orders' ? 'active' : ''; ?>">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 2h12v20l-3-2-3 2-3-2-3 2V2Z"/><path d="M9 7h6"/><path d="M9 11h6"/></svg>
                 Orders
                 <?php if ($navCounts['orders'] > 0): ?><span class="nav-badge" title="<?php echo (int)$navCounts['orders']; ?> pending orders"><?php echo (int)$navCounts['orders']; ?></span><?php endif; ?>
             </a>
+            <?php if (is_admin()): ?>
             <a href="users.php" class="<?php echo ($active ?? '') === 'users' ? 'active' : ''; ?>">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="8" r="3.5"/><path d="M2.5 20c.5-3.5 3.2-5.5 6.5-5.5s6 2 6.5 5.5"/><circle cx="17.5" cy="9.5" r="2.5"/><path d="M16 14.6c2.6.3 4.5 2 5 4.9"/></svg>
                 Users
             </a>
+            <?php endif; ?>
             <a href="inquiries.php" class="<?php echo ($active ?? '') === 'inquiries' ? 'active' : ''; ?>">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="14" rx="3"/><path d="m3 7 9 6 9-6"/></svg>
                 Event Inquiries
@@ -100,6 +105,7 @@ try {
                 Messages
                 <?php if ($navCounts['messages'] > 0): ?><span class="nav-badge" title="<?php echo (int)$navCounts['messages']; ?> unread messages"><?php echo (int)$navCounts['messages']; ?></span><?php endif; ?>
             </a>
+            <?php if (is_admin()): ?>
             <a href="subscribers.php" class="<?php echo ($active ?? '') === 'subscribers' ? 'active' : ''; ?>">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4h16v12H9l-5 4V4Z"/><path d="M8 9h8"/><path d="M8 12h5"/></svg>
                 Subscribers
@@ -108,24 +114,25 @@ try {
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.9l.1.1a2 2 0 1 1-2.9 2.9l-.1-.1a1.7 1.7 0 0 0-1.9-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.2a1.7 1.7 0 0 0-1-1.5 1.7 1.7 0 0 0-1.9.3l-.1.1a2 2 0 1 1-2.9-2.9l.1-.1a1.7 1.7 0 0 0 .3-1.9 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.2a1.7 1.7 0 0 0 1.5-1 1.7 1.7 0 0 0-.3-1.9l-.1-.1a2 2 0 1 1 2.9-2.9l.1.1a1.7 1.7 0 0 0 1.9.3h.1a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.2a1.7 1.7 0 0 0 1 1.5h.1a1.7 1.7 0 0 0 1.9-.3l.1-.1a2 2 0 1 1 2.9 2.9l-.1.1a1.7 1.7 0 0 0-.3 1.9v.1a1.7 1.7 0 0 0 1.5 1h.2a2 2 0 1 1 0 4h-.2a1.7 1.7 0 0 0-1.5 1Z"/></svg>
                 Settings
             </a>
+            <?php endif; ?>
         </nav>
 
         <div class="admin-sidebar-foot">
             <span>Petal Moments</span>
-            <small>Flowers &amp; Events Admin</small>
+            <small>Flowers &amp; Events Team</small>
         </div>
     </aside>
 
     <div class="admin-content">
         <header class="admin-topbar">
-            <div class="crumb">Admin Panel <span class="crumb-span">/</span> <b><?php echo e($crumbLabel); ?></b></div>
+            <div class="crumb"><?php echo e($panelLabel); ?> <span class="crumb-span">/</span> <b><?php echo e($crumbLabel); ?></b></div>
             <div class="topbar-right">
                 <div class="admin-user">
-                    <span class="avatar avatar-sm">A</span>
-                    <span>Admin</span>
+                    <span class="avatar avatar-sm"><?php echo is_admin() ? 'A' : 'E'; ?></span>
+                    <span><?php echo e($_SESSION['name'] ?? ucfirst(current_role())); ?></span>
                 </div>
                 <a class="btn btn-ghost btn-sm" href="../index.php">View site</a>
-                <a class="btn btn-light btn-sm" href="../logout.php">Logout</a>
+                <a class="btn btn-light btn-sm" href="../logout.php" data-logout-confirm>Logout</a>
             </div>
         </header>
 
