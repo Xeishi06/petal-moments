@@ -33,7 +33,7 @@ foreach (array_keys($fields) as $key) { $current[$key] = setting($key); }
 
 <div class="admin-card">
     <h1>Settings</h1>
-    <p>Shop details customers see at checkout and on the site. Changes apply instantly — no code edits.</p>
+    <p>Shop details customers see at checkout and on the site.</p>
 </div>
 
 <div class="admin-card">
