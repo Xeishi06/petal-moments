@@ -19,9 +19,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
     $email    = strtolower(trim($_POST['email'] ?? ''));
     $password = $_POST['password'] ?? '';
+    $lockSeconds = 0;
 
-    if (!login_allowed($email)) {
-        flash('error', 'Too many failed attempts. Wait 15 minutes before trying again.');
+    if ($email !== '' && !filter_var($email, FILTER_VALIDATE_EMAIL)) {
+        flash('error', 'Please enter a valid email address.');
+    } elseif ($email !== '' && !login_allowed($email)) {
+        $lockSeconds = login_wait_seconds($email);
     } else {
         $stmt = db()->prepare("SELECT * FROM users WHERE email = :e AND is_active = 1");
         $stmt->execute([':e' => $email]);
@@ -34,7 +37,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             redirect(is_staff() ? staff_home() : $next);
         } else {
             login_hit($email);
-            flash('error', login_allowed($email) ? 'Invalid email or password.' : 'Too many failed attempts. Wait 15 minutes before trying again.');
+            if (!login_allowed($email)) {
+                $lockSeconds = login_wait_seconds($email);
+            } else {
+                flash('error', 'Invalid email or password.');
+            }
         }
     }
 }
@@ -46,6 +53,38 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         <div class="auth-card">
             <span class="eyebrow">WELCOME BACK</span>
             <h2>Log in to your account</h2>
+
+            <?php if (!empty($lockSeconds) && $lockSeconds > 0): ?>
+            <div class="lockout-box" id="lockoutBox" data-seconds="<?php echo (int)$lockSeconds; ?>">
+                <strong>Too many failed attempts.</strong>
+                <p>For your security, this email is locked. You can try again in
+                    <span id="lockoutTimer">--:--</span>.</p>
+            </div>
+            <script>
+                window.addEventListener('DOMContentLoaded', function () {
+                    var box = document.getElementById('lockoutBox');
+                    var out = document.getElementById('lockoutTimer');
+                    var btn = document.querySelector('.auth-card button[type="submit"]');
+                    var left = parseInt(box.getAttribute('data-seconds'), 10) || 0;
+                    function fmt(s) {
+                        var m = Math.floor(s / 60), r = s % 60;
+                        return m + ':' + (r < 10 ? '0' : '') + r;
+                    }
+                    function tick() {
+                        if (left <= 0) {
+                            if (btn) { btn.disabled = false; }
+                            out.textContent = 'now \u2014 you can try again.';
+                            return;
+                        }
+                        out.textContent = fmt(left);
+                        left -= 1;
+                        setTimeout(tick, 1000);
+                    }
+                    if (btn) { btn.disabled = true; }
+                    tick();
+                });
+            </script>
+            <?php endif; ?>
 
             <form method="post" action="login.php">
                 <input type="hidden" name="csrf" value="<?php echo e(csrf_token()); ?>">

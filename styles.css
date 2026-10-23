@@ -2432,3 +2432,16 @@ body.modal-open {
     padding: 18px 16px;
   }
 }
+
+/* ===== Login lockout notice ===== */
+.lockout-box {
+    background: #fdeeef;
+    border: 1px solid #e2b4ba;
+    color: #7a3540;
+    border-radius: 10px;
+    padding: 14px 16px;
+    margin: 4px 0 18px;
+    font-size: 0.95rem;
+    line-height: 1.5;
+}
+.lockout-box strong { display: block; margin-bottom: 4px; }

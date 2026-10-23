@@ -120,6 +120,20 @@ function login_clear($email)
     login_attempts($email, 'clear');
 }
 
+// Seconds remaining before a locked email can try again (0 = not locked).
+function login_wait_seconds($email)
+{
+    $dir = sys_get_temp_dir() . '/petal-login-' . substr(hash('sha256', __DIR__), 0, 12);
+    $file = @fopen($dir . '/' . hash('sha256', strtolower(trim($email))) . '.json', 'r');
+    if (!$file) { return 0; }
+    $attempts = json_decode(stream_get_contents($file), true) ?: [];
+    fclose($file);
+    $now = time();
+    $attempts = array_values(array_filter($attempts, function ($t) use ($now) { return $now - $t < 900; }));
+    if (count($attempts) < 5) { return 0; }
+    return max(0, (min($attempts) + 900) - $now);
+}
+
 function is_logged_in()
 {
     return isset($_SESSION['user_id']);
