@@ -66,22 +66,32 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     var out = document.getElementById('lockoutTimer');
                     var btn = document.querySelector('.auth-card button[type="submit"]');
                     var left = parseInt(box.getAttribute('data-seconds'), 10) || 0;
+                    // Absolute deadline: immune to background-tab timer throttling.
+                    var end = Date.now() + left * 1000;
                     function fmt(s) {
                         var m = Math.floor(s / 60), r = s % 60;
                         return m + ':' + (r < 10 ? '0' : '') + r;
                     }
-                    function tick() {
-                        if (left <= 0) {
+                    function render() {
+                        var remain = Math.max(0, Math.round((end - Date.now()) / 1000));
+                        if (remain <= 0) {
                             if (btn) { btn.disabled = false; }
                             out.textContent = 'now \u2014 you can try again.';
-                            return;
+                            return true;
                         }
-                        out.textContent = fmt(left);
-                        left -= 1;
-                        setTimeout(tick, 1000);
+                        out.textContent = fmt(remain);
+                        return false;
                     }
+                    function loop() {
+                        if (render()) { return; }
+                        setTimeout(loop, 1000);
+                    }
+                    // Repaint instantly when the user returns to this tab.
+                    document.addEventListener('visibilitychange', function () {
+                        if (!document.hidden) { render(); }
+                    });
                     if (btn) { btn.disabled = true; }
-                    tick();
+                    loop();
                 });
             </script>
             <?php endif; ?>
